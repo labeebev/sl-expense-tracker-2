@@ -795,21 +795,28 @@
                 return;
             }
 
-            // Call the deleteExpense function in Apps Script
-            const deleteUrl = state.scriptUrl.replace('/exec', '') + '?timestamp=' + encodeURIComponent(timestamp);
-            
-            fetch(deleteUrl)
+            // Use POST method for delete to avoid CORS issues
+            fetch(state.scriptUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'delete',
+                    timestamp: timestamp
+                })
+            })
                 .then(r => r.json())
                 .then(data => {
-                    if (data.success || data === true) {
+                    if (data.success || data.success === true) {
                         loadExpenses();
                     } else {
-                        alert('Failed to delete expense');
+                        alert('Failed to delete expense: ' + (data.error || 'Unknown error'));
                     }
                 })
                 .catch(e => {
-                    console.error(e);
-                    alert('Failed to delete expense. Check console.');
+                    console.error('Delete error:', e);
+                    alert('Failed to delete expense. Error: ' + e.message);
                 });
         }
 
