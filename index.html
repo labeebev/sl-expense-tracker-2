@@ -838,9 +838,9 @@
             }
             
             const categoryHtml = categories.map(cat => {
-                const category = commonCategories.find(c => c.id === cat);
+                const category = commonCategories.find(c => c.id === cat) || personalCategories.find(c => c.id === cat);
                 const isActive = state.activeCategoryFilters.includes(cat);
-                return `<button type="button" class="filter-btn ${isActive ? 'active' : ''}" onclick="toggleCategoryFilter('${cat}')">${category.icon} ${category.label}</button>`;
+                return `<button type="button" class="filter-btn ${isActive ? 'active' : ''}" onclick="toggleCategoryFilter('${cat}')">${category?.icon || '💰'} ${category?.label || cat}</button>`;
             }).join('');
             
             document.getElementById('categoryFilterButtons').innerHTML = categoryHtml;
@@ -976,10 +976,13 @@
                     const typeLabel = exp.type === 'common' ? '[Common]' : '[Personal]';
                     const splitLabel = exp.splitType === '50-50' ? ' (50-50)' : '';
                     const categories = exp.type === 'common' ? commonCategories : personalCategories;
+                    const categoryObj = categories.find(c => c.id === exp.category);
+                    const categoryIcon = categoryObj?.icon || '💰';
+                    const categoryLabel = categoryObj?.label || exp.category;
                     return `<div class="expense-item" style="border-left-color: ${borderColor}">
                         <div class="expense-left">
                             <div class="expense-category">
-                                ${categories.find(c => c.id === exp.category)?.icon || '💰'} ${categories.find(c => c.id === exp.category)?.label || exp.category}
+                                ${categoryIcon} ${categoryLabel}
                             </div>
                             ${exp.description ? `<div class="expense-description">${exp.description}</div>` : ''}
                             <p class="expense-meta">${person} ${typeLabel}${splitLabel}</p>
