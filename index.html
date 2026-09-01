@@ -330,7 +330,7 @@
         
         .expense-item {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
             padding: 12px;
             background: #f9f9f9;
@@ -382,6 +382,8 @@
             font-size: 14px;
             font-weight: bold;
             color: #333;
+            white-space: nowrap;
+            margin-left: 12px;
         }
         
         .empty-state {
@@ -615,9 +617,14 @@
                 </div>
             </div>
 
-            <div id="commonFilterSection" class="filter-section">
-                <div class="filter-label">Filter Common Expenses</div>
-                <div class="filter-buttons" id="filterButtons"></div>
+            <div id="categoryFilterSection" class="filter-section">
+                <div class="filter-label">Filter by Category</div>
+                <div class="filter-buttons" id="categoryFilterButtons"></div>
+            </div>
+
+            <div id="personFilterSection" class="filter-section">
+                <div class="filter-label">Filter by Person</div>
+                <div class="filter-buttons" id="personFilterButtons"></div>
             </div>
 
             <div id="commonContributionSection" class="contribution-section">
@@ -671,7 +678,6 @@
             <div id="personField">
                 <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500;">Who Paid?</label>
                 <select class="form-select" id="personSelect">
-                    <option value="shared">Shared</option>
                     <option value="safu">Safu</option>
                     <option value="labeeb">Labeeb</option>
                 </select>
@@ -730,7 +736,8 @@
             selectedDate: new Date().toISOString().split('T')[0],
             currentType: 'common',
             syncStatus: 'ready',
-            activeFilters: []
+            activeCategoryFilters: [],
+            activePersonFilters: ['safu', 'labeeb', 'shared']
         };
 
         document.getElementById('selectedDate').value = state.selectedDate;
@@ -852,24 +859,48 @@
         }
 
         function updateFilterButtons() {
-            const commonExpenses = state.expenses.filter(e => e.date === state.selectedDate && e.type === 'common');
-            const categories = [...new Set(commonExpenses.map(e => e.category))];
+            const today = state.expenses.filter(e => e.date === state.selectedDate && e.type === 'common');
+            const categories = [...new Set(today.map(e => e.category))];
             
-            const html = categories.map(cat => {
+            const categoryHtml = categories.map(cat => {
                 const category = commonCategories.find(c => c.id === cat);
-                const isActive = state.activeFilters.includes(cat);
-                return `<button type="button" class="filter-btn ${isActive ? 'active' : ''}" onclick="toggleFilter('${cat}')">${category.icon} ${category.label}</button>`;
+                const isActive = state.activeCategoryFilters.length === 0 || state.activeCategoryFilters.includes(cat);
+                return `<button type="button" class="filter-btn ${isActive ? 'active' : ''}" onclick="toggleCategoryFilter('${cat}')">${category.icon} ${category.label}</button>`;
             }).join('');
             
-            document.getElementById('filterButtons').innerHTML = html;
+            document.getElementById('categoryFilterButtons').innerHTML = categoryHtml;
+
+            const persons = [
+                { id: 'safu', label: 'Safu', icon: '👤' },
+                { id: 'labeeb', label: 'Labeeb', icon: '👤' },
+                { id: 'shared', label: 'Shared', icon: '👥' }
+            ];
+
+            const personHtml = persons.map(person => {
+                const isActive = state.activePersonFilters.includes(person.id);
+                return `<button type="button" class="filter-btn ${isActive ? 'active' : ''}" onclick="togglePersonFilter('${person.id}')">${person.icon} ${person.label}</button>`;
+            }).join('');
+            
+            document.getElementById('personFilterButtons').innerHTML = personHtml;
         }
 
-        function toggleFilter(category) {
-            const index = state.activeFilters.indexOf(category);
+        function toggleCategoryFilter(category) {
+            const index = state.activeCategoryFilters.indexOf(category);
             if (index > -1) {
-                state.activeFilters.splice(index, 1);
+                state.activeCategoryFilters.splice(index, 1);
             } else {
-                state.activeFilters.push(category);
+                state.activeCategoryFilters.push(category);
+            }
+            updateFilterButtons();
+            updateUI();
+        }
+
+        function togglePersonFilter(person) {
+            const index = state.activePersonFilters.indexOf(person);
+            if (index > -1) {
+                state.activePersonFilters.splice(index, 1);
+            } else {
+                state.activePersonFilters.push(person);
             }
             updateFilterButtons();
             updateUI();
@@ -879,13 +910,16 @@
             const today = state.expenses.filter(e => e.date === state.selectedDate);
             
             let commonToday = today.filter(e => e.type === 'common');
-            if (state.activeFilters.length > 0) {
-                commonToday = commonToday.filter(e => state.activeFilters.includes(e.category));
+            
+            if (state.activeCategoryFilters.length > 0) {
+                commonToday = commonToday.filter(e => state.activeCategoryFilters.includes(e.category));
             }
+
+            commonToday = commonToday.filter(e => state.activePersonFilters.includes(e.person));
             
             const safuTotal = today.filter(e => e.person === 'safu').reduce((s, e) => s + e.amount, 0);
             const labeebTotal = today.filter(e => e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
-            const commonTotal = commonToday.reduce((s, e) => s + e.amount, 0);
+            const commonTotal = today.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
             const dailyTotal = today.reduce((s, e) => s + e.amount, 0);
 
             document.getElementById('commonTotal').textContent = '₹' + commonTotal.toFixed(2);
@@ -893,11 +927,10 @@
             document.getElementById('safuTotal').textContent = safuTotal.toFixed(2);
             document.getElementById('labeebTotal').textContent = labeebTotal.toFixed(2);
 
-            // Contribution section
-            const commonExpenses = today.filter(e => e.type === 'common');
-            const safuCommonContribution = commonExpenses.filter(e => e.person === 'safu').reduce((s, e) => s + e.amount, 0);
-            const labeebCommonContribution = commonExpenses.filter(e => e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
-            const sharedCommonContribution = commonExpenses.filter(e => e.person === 'shared').reduce((s, e) => s + e.amount, 0);
+            const allCommonExpenses = today.filter(e => e.type === 'common');
+            const safuCommonContribution = allCommonExpenses.filter(e => e.person === 'safu').reduce((s, e) => s + e.amount, 0);
+            const labeebCommonContribution = allCommonExpenses.filter(e => e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
+            const sharedCommonContribution = allCommonExpenses.filter(e => e.person === 'shared').reduce((s, e) => s + e.amount, 0);
             
             let contributionHtml = '';
             if (safuCommonContribution > 0) {
@@ -914,17 +947,14 @@
             }
             document.getElementById('contributionContent').innerHTML = contributionHtml;
 
-            // Expenses list
             let html = '';
-            if (commonToday.length === 0 && state.activeFilters.length > 0) {
-                html = '<div class="empty-state"><p>No expenses for selected filter</p></div>';
-            } else if (commonToday.length === 0) {
-                html = '<div class="empty-state"><p>No common expenses for this date</p></div>';
+            if (commonToday.length === 0) {
+                html = '<div class="empty-state"><p>No expenses matching filters</p></div>';
             } else {
                 html = commonToday.map((exp, i) => {
                     const person = exp.person === 'safu' ? 'Safu' : exp.person === 'labeeb' ? 'Labeeb' : 'Shared';
                     const borderColor = exp.person === 'safu' ? '#22c55e' : exp.person === 'labeeb' ? '#ec4899' : '#667eea';
-                    const desc = exp.description ? `<div class="tooltip"><span class="info-icon">ℹ️</span><span class="tooltiptext">${exp.description}</span></div>` : '';
+                    const desc = exp.description ? `<span class="tooltip"><span class="info-icon">ℹ️</span><span class="tooltiptext">${exp.description}</span></span>` : '';
                     return `<div class="expense-item" style="border-left-color: ${borderColor}">
                         <div class="expense-left">
                             <div class="expense-category">
@@ -940,7 +970,6 @@
             }
             document.getElementById('expensesList').innerHTML = html;
 
-            // Monthly summary
             const month = state.expenses.filter(e => e.date.startsWith(state.selectedDate.slice(0, 7)));
             const monthCommonTotal = month.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
             const monthSafuTotal = month.filter(e => e.person === 'safu').reduce((s, e) => s + e.amount, 0);
