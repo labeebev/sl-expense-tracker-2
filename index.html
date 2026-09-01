@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="SL Expense">
+    <title>SL Expense Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f5f5f5;
+            padding-bottom: 80px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .header p {
+            margin: 4px 0 0 0;
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .header-content {
+            flex: 1;
+        }
+        
+        .settings-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        .settings-panel {
+            background: #f9f9f9;
+            padding: 16px;
+            border-bottom: 1px solid #ddd;
+            display: none;
+        }
+        
+        .settings-panel.active {
+            display: block;
+        }
+        
+        .settings-panel h3 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .form-group {
+            margin-bottom: 12px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        
+        .form-group p {
+            margin: 6px 0 0 0;
+            font-size: 11px;
+            color: #999;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .button-group button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .button-group .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .button-group .btn-secondary {
+            background: #ddd;
+            color: #333;
+        }
+        
+        .status-box {
+            margin-top: 12px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        
+        .status-box p {
+            margin: 0;
+        }
+        
+        .status-box .status-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .tab-button.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .content {
+            padding: 16px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 12px;
+        }
+        
+        .warning-box p {
+            margin: 0;
+        }
+        
+        .warning-box .warning-title {
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        
+        .date-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .summary-card {
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .summary-card.common {
+            background: #f0f4ff;
+        }
+        
+        .summary-card.total {
+            background: #f0fff4;
+        }
+        
+        .summary-card.person1 {
+            background: #e8f5e9;
+        }
+        
+        .summary-card.person2 {
+            background: #fce4ec;
+        }
+        
+        .summary-card p:first-child {
+            margin: 0 0 6px 0;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .summary-card p:last-child {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .summary-card.common p:last-child {
+            color: #667eea;
+        }
+        
+        .summary-card.total p:last-child {
+            color: #16a34a;
+        }
+        
+        .summary-card.person1 p:last-child {
+            color: #1b5e20;
+        }
+        
+        .summary-card.person2 p:last-child {
+            color: #880e4f;
+        }
+        
+        .expenses-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .expenses-header h3 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .sync-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .expense-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .expense-left {
+            flex: 1;
+        }
+        
+        .expense-left p:first-child {
+            margin: 0 0 4px 0;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .expense-left p:last-child {
+            margin: 0;
+            font-size: 11px;
+            color: #999;
+        }
+        
+        .expense-amount {
+            margin: 0;
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 24px;
+            color: #999;
+        }
+        
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        
+        .form-modal {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            width: calc(100% - 40px);
+            max-width: 300px;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .form-modal.active {
+            display: block;
+        }
+        
+        .form-modal h3 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .form-modal form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .type-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .type-btn {
+            flex: 1;
+            padding: 8px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .type-btn.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .form-select, .form-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        
+        .form-submit {
+            padding: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .form-submit:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .monthly-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        
+        .total-box {
+            background: #f9f9f9;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 12px;
+        }
+        
+        .total-box p:first-child {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .total-box p:last-child {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>💰 SL Expense Tracker</h1>
+            <p>Google Sheets Synced</p>
+        </div>
+        <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
+    </div>
+
+    <div class="settings-panel" id="settingsPanel">
+        <h3>Setup Google Sheets Sync</h3>
+        <div class="form-group">
+            <label>Apps Script URL</label>
+            <input type="text" id="scriptUrl" placeholder="https://script.googleapis.com/macros/d/...">
+            <p>Paste the deployment URL from your Google Apps Script here</p>
+        </div>
+        <div class="button-group">
+            <button class="btn-primary" onclick="testAndSave()">Save URL</button>
+            <button class="btn-secondary" onclick="toggleSettings()">Close</button>
+        </div>
+        <div class="status-box">
+            <p class="status-label">Status: <span id="syncStatus">ready</span></p>
+            <p style="font-size: 11px; color: #666;">Last sync: <span id="lastSync">Never</span></p>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-button active" onclick="switchTab('daily')">📅 Daily</button>
+        <button class="tab-button" onclick="switchTab('monthly')">📊 Monthly</button>
+    </div>
+
+    <div class="content">
+        <div id="dailyTab">
+            <div id="warningBox" class="warning-box" style="display: none;">
+                <p class="warning-title">⚠️ Setup Required</p>
+                <p>Click the ⚙️ icon to add your Google Apps Script URL to enable syncing.</p>
+            </div>
+
+            <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500;">Select Date</label>
+            <input type="date" id="selectedDate" class="date-input" onchange="updateDate()">
+
+            <div class="summary-grid">
+                <div class="summary-card common">
+                    <p>Common</p>
+                    <p id="commonTotal">₹0.00</p>
+                </div>
+                <div class="summary-card total">
+                    <p>Total</p>
+                    <p id="dailyTotal">₹0.00</p>
+                </div>
+            </div>
+
+            <div class="summary-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 16px;">
+                <div class="summary-card person1">
+                    <p style="color: #2e7d32; font-weight: 600;">Safu</p>
+                    <p style="color: #1b5e20;">₹<span id="person1Total">0.00</span></p>
+                </div>
+                <div class="summary-card person2">
+                    <p style="color: #c2185b; font-weight: 600;">Labeeb</p>
+                    <p style="color: #880e4f;">₹<span id="person2Total">0.00</span></p>
+                </div>
+            </div>
+
+            <div class="expenses-header">
+                <h3>Expenses</h3>
+                <button class="sync-btn" onclick="loadExpenses()">🔄 Sync</button>
+            </div>
+            <div id="expensesList"></div>
+        </div>
+
+        <div id="monthlyTab" style="display: none;">
+            <h3 style="margin: 0 0 16px 0; font-size: 16px;">Monthly Summary</h3>
+            <div class="monthly-summary">
+                <div class="summary-card common">
+                    <p>Common</p>
+                    <p id="monthCommon">₹0.00</p>
+                </div>
+                <div class="summary-card person1">
+                    <p>Safu</p>
+                    <p style="color: #16a34a;">₹<span id="monthPerson1">0.00</span></p>
+                </div>
+                <div class="summary-card person2">
+                    <p>Labeeb</p>
+                    <p style="color: #ec4899;">₹<span id="monthPerson2">0.00</span></p>
+                </div>
+            </div>
+            <div class="total-box">
+                <p>Total Monthly</p>
+                <p>₹<span id="monthTotal">0.00</span></p>
+            </div>
+        </div>
+    </div>
+
+    <button class="fab" onclick="toggleForm()">+</button>
+
+    <div class="form-modal" id="formModal">
+        <h3>Add Expense</h3>
+        <form onsubmit="addExpense(event)">
+            <div>
+                <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500;">Type</label>
+                <div class="type-buttons">
+                    <button type="button" class="type-btn active" onclick="setType('common')">Common</button>
+                    <button type="button" class="type-btn" onclick="setType('personal')">Personal</button>
+                </div>
+            </div>
+
+            <div id="personField" style="display: none;">
+                <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500;">Person</label>
+                <select class="form-select" id="personSelect">
+                    <option value="person1">Safu</option>
+                    <option value="person2">Labeeb</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500;">Category</label>
+                <select class="form-select" id="categorySelect">
+                    <option value="rent">🏠 Rent</option>
+                    <option value="groceries">🛒 Groceries</option>
+                    <option value="outside_food">🍔 Outside Food</option>
+                    <option value="electricity">⚡ Electricity</option>
+                    <option value="chitty">💳 Chitty</option>
+                    <option value="gift_deposit">🎁 Gift Deposit</option>
+                    <option value="petrol">⛽ Petrol</option>
+                    <option value="shopping">🛍️ Shopping</option>
+                    <option value="savings">💰 Savings Fund</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500;">Amount (₹)</label>
+                <input type="number" step="0.01" min="0" id="amountInput" class="form-input" placeholder="0.00" required>
+            </div>
+
+            <button type="submit" class="form-submit" id="submitBtn">Add Expense</button>
+        </form>
+    </div>
+
+    <script>
+        const state = {
+            expenses: [],
+            scriptUrl: localStorage.getItem('scriptUrl') || '',
+            selectedDate: new Date().toISOString().split('T')[0],
+            currentType: 'common',
+            syncStatus: 'ready'
+        };
+
+        document.getElementById('selectedDate').value = state.selectedDate;
+        if (state.scriptUrl) {
+            document.getElementById('scriptUrl').value = state.scriptUrl;
+        } else {
+            document.getElementById('warningBox').style.display = 'block';
+        }
+
+        function toggleSettings() {
+            document.getElementById('settingsPanel').classList.toggle('active');
+        }
+
+        function testAndSave() {
+            const url = document.getElementById('scriptUrl').value;
+            if (!url) {
+                alert('Please enter the Apps Script URL');
+                return;
+            }
+            state.scriptUrl = url;
+            localStorage.setItem('scriptUrl', url);
+            document.getElementById('syncStatus').textContent = 'syncing...';
+            loadExpenses();
+            setTimeout(() => {
+                document.getElementById('syncStatus').textContent = 'ready';
+                document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
+                toggleSettings();
+            }, 1000);
+        }
+
+        function loadExpenses() {
+            if (!state.scriptUrl) {
+                alert('Please setup Google Apps Script URL first');
+                return;
+            }
+            document.getElementById('syncStatus').textContent = 'syncing';
+            fetch(state.scriptUrl)
+                .then(r => r.json())
+                .then(data => {
+                    state.expenses = data;
+                    document.getElementById('syncStatus').textContent = 'ready';
+                    document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
+                    updateUI();
+                })
+                .catch(e => {
+                    console.error(e);
+                    document.getElementById('syncStatus').textContent = 'error';
+                    alert('Failed to sync. Check your URL.');
+                });
+        }
+
+        function updateDate() {
+            state.selectedDate = document.getElementById('selectedDate').value;
+            updateUI();
+        }
+
+        function switchTab(tab) {
+            document.getElementById('dailyTab').style.display = tab === 'daily' ? 'block' : 'none';
+            document.getElementById('monthlyTab').style.display = tab === 'monthly' ? 'block' : 'none';
+            document.querySelectorAll('.tab-button').forEach((btn, idx) => {
+                btn.classList.toggle('active', (idx === 0 && tab === 'daily') || (idx === 1 && tab === 'monthly'));
+            });
+        }
+
+        function setType(type) {
+            state.currentType = type;
+            document.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('personField').style.display = type === 'personal' ? 'block' : 'none';
+            updateCategoryOptions();
+        }
+
+        function updateCategoryOptions() {
+            const select = document.getElementById('categorySelect');
+            const commonOptions = `
+                    <option value="rent">🏠 Rent</option>
+                    <option value="groceries">🛒 Groceries</option>
+                    <option value="outside_food">🍔 Outside Food</option>
+                    <option value="electricity">⚡ Electricity</option>
+                    <option value="chitty">💳 Chitty</option>
+                    <option value="gift_deposit">🎁 Gift Deposit</option>
+                    <option value="petrol">⛽ Petrol</option>
+                    <option value="shopping">🛍️ Shopping</option>
+                    <option value="savings">💰 Savings Fund</option>
+                `;
+            const personalOnlyOptions = `
+                    <option value="fund_transfer">💸 Fund Transfer</option>
+                    <option value="recharge">📱 Recharge</option>
+                    <option value="insurance">🛡️ Insurance</option>
+                `;
+            
+            if (state.currentType === 'common') {
+                select.innerHTML = commonOptions;
+            } else {
+                select.innerHTML = commonOptions + personalOnlyOptions;
+            }
+        }
+
+        function toggleForm() {
+            document.getElementById('formModal').classList.toggle('active');
+        }
+
+        function addExpense(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('amountInput').value);
+            if (!amount || !state.scriptUrl) {
+                alert('Setup required or invalid amount');
+                return;
+            }
+
+            const expense = {
+                date: state.selectedDate,
+                type: state.currentType,
+                person: state.currentType === 'personal' ? document.getElementById('personSelect').value : 'shared',
+                category: document.getElementById('categorySelect').value,
+                amount: amount,
+                timestamp: new Date().toISOString()
+            };
+
+            document.getElementById('submitBtn').disabled = true;
+            fetch(state.scriptUrl, {
+                method: 'POST',
+                body: JSON.stringify(expense)
+            })
+            .then(() => {
+                document.getElementById('amountInput').value = '';
+                toggleForm();
+                setTimeout(() => loadExpenses(), 500);
+                document.getElementById('submitBtn').disabled = false;
+            })
+            .catch(e => {
+                alert('Failed to add expense');
+                document.getElementById('submitBtn').disabled = false;
+            });
+        }
+
+        function updateUI() {
+            const today = state.expenses.filter(e => e.date === state.selectedDate);
+            const month = state.expenses.filter(e => e.date.startsWith(state.selectedDate.slice(0, 7)));
+
+            const commonToday = today.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
+            const p1Today = today.filter(e => e.type === 'personal' && e.person === 'person1').reduce((s, e) => s + e.amount, 0);
+            const p2Today = today.filter(e => e.type === 'personal' && e.person === 'person2').reduce((s, e) => s + e.amount, 0);
+
+            document.getElementById('commonTotal').textContent = '₹' + commonToday.toFixed(2);
+            document.getElementById('dailyTotal').textContent = '₹' + (commonToday + p1Today + p2Today).toFixed(2);
+            document.getElementById('person1Total').textContent = p1Today.toFixed(2);
+            document.getElementById('person2Total').textContent = p2Today.toFixed(2);
+
+            let html = '';
+            if (today.length === 0) {
+                html = '<div class="empty-state"><p>No expenses yet</p></div>';
+            } else {
+                today.forEach(exp => {
+                    html += `<div class="expense-item" style="border-left-color: ${exp.type === 'common' ? '#667eea' : exp.person === 'person1' ? '#22c55e' : '#ec4899'}">
+                        <div class="expense-left">
+                            <p>${exp.category}</p>
+                            <p>${exp.type === 'common' ? 'Common' : exp.person === 'person1' ? 'Safu' : 'Labeeb'}</p>
+                        </div>
+                        <p class="expense-amount">₹${exp.amount.toFixed(2)}</p>
+                    </div>`;
+                });
+            }
+            document.getElementById('expensesList').innerHTML = html;
+
+            const commonMonth = month.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
+            const p1Month = month.filter(e => e.type === 'personal' && e.person === 'person1').reduce((s, e) => s + e.amount, 0);
+            const p2Month = month.filter(e => e.type === 'personal' && e.person === 'person2').reduce((s, e) => s + e.amount, 0);
+
+            document.getElementById('monthCommon').textContent = '₹' + commonMonth.toFixed(2);
+            document.getElementById('monthPerson1').textContent = p1Month.toFixed(2);
+            document.getElementById('monthPerson2').textContent = p2Month.toFixed(2);
+            document.getElementById('monthTotal').textContent = (commonMonth + p1Month + p2Month).toFixed(2);
+        }
+
+        updateUI();
+    </script>
+</body>
+</html>
