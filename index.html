@@ -587,6 +587,13 @@
                 <div class="filter-buttons" id="typeFilterButtons"></div>
             </div>
 
+            <div class="filter-section">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="ccBillToggle" checked onchange="toggleCreditCardBill()" style="width: 18px; height: 18px; cursor: pointer;">
+                    <label for="ccBillToggle" style="font-size: 12px; font-weight: 500; cursor: pointer; margin: 0;">Include Credit Card Bill (Last Month's Payment)</label>
+                </div>
+            </div>
+
             <div id="commonContributionSection" class="contribution-section">
                 <div class="contribution-title">Common Expense Breakdown</div>
                 <div id="contributionContent"></div>
@@ -601,23 +608,58 @@
 
         <div id="monthlyTab" style="display: none;">
             <h3 style="margin: 0 0 16px 0; font-size: 16px;">Monthly Summary</h3>
+            
+            <div class="filter-section">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="ccBillToggleMonthly" checked onchange="toggleCreditCardBill()" style="width: 18px; height: 18px; cursor: pointer;">
+                    <label for="ccBillToggleMonthly" style="font-size: 12px; font-weight: 500; cursor: pointer; margin: 0;">Include Credit Card Bill (Last Month's Payment)</label>
+                </div>
+            </div>
+
+            <div class="filter-section" style="background: #f0f4ff;">
+                <div class="filter-label">Monthly Salary</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 6px; font-size: 11px; color: #666;">Safu's Salary</label>
+                        <input type="number" id="safuSalary" class="form-input" placeholder="0.00" onchange="saveSalaries()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; width: 100%;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 6px; font-size: 11px; color: #666;">Labeeb's Salary</label>
+                        <input type="number" id="labeebSalary" class="form-input" placeholder="0.00" onchange="saveSalaries()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; width: 100%;">
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Expenses vs Salary</h3>
             <div class="monthly-summary">
                 <div class="summary-card common">
                     <p>Common</p>
                     <p id="monthCommon">₹0.00</p>
                 </div>
                 <div class="summary-card safu">
-                    <p>Safu</p>
+                    <p>Safu Total</p>
                     <p style="color: #16a34a;">₹<span id="monthSafu">0.00</span></p>
                 </div>
                 <div class="summary-card labeeb">
-                    <p>Labeeb</p>
+                    <p>Labeeb Total</p>
                     <p style="color: #ec4899;">₹<span id="monthLabeeb">0.00</span></p>
                 </div>
             </div>
             <div class="total-box">
                 <p>Total Monthly</p>
                 <p>₹<span id="monthTotal">0.00</span></p>
+            </div>
+
+            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Balance in Hand</h3>
+            <div class="monthly-summary">
+                <div class="summary-card safu">
+                    <p style="color: #2e7d32;">Safu Balance</p>
+                    <p style="color: #1b5e20; font-size: 16px;">₹<span id="safuBalance">0.00</span></p>
+                </div>
+                <div class="summary-card labeeb">
+                    <p style="color: #c2185b;">Labeeb Balance</p>
+                    <p style="color: #880e4f; font-size: 16px;">₹<span id="labeebBalance">0.00</span></p>
+                </div>
             </div>
         </div>
     </div>
@@ -680,7 +722,8 @@
             { id: 'gift_deposit', label: 'Gift Deposit', icon: '🎁' },
             { id: 'petrol', label: 'Petrol', icon: '⛽' },
             { id: 'shopping', label: 'Shopping', icon: '🛍️' },
-            { id: 'savings', label: 'Savings Fund', icon: '💰' }
+            { id: 'savings', label: 'Savings Fund', icon: '💰' },
+            { id: 'credit_card_bill', label: 'Credit Card Bill', icon: '💳' }
         ];
 
         const personalCategories = [
@@ -695,7 +738,8 @@
             { id: 'savings', label: 'Savings Fund', icon: '💰' },
             { id: 'fund_transfer', label: 'Fund Transfer', icon: '💸' },
             { id: 'recharge', label: 'Recharge', icon: '📱' },
-            { id: 'insurance', label: 'Insurance', icon: '🛡️' }
+            { id: 'insurance', label: 'Insurance', icon: '🛡️' },
+            { id: 'credit_card_bill', label: 'Credit Card Bill', icon: '💳' }
         ];
 
         const state = {
@@ -706,7 +750,10 @@
             syncStatus: 'ready',
             activeCategoryFilters: [],
             activePersonFilters: ['safu', 'labeeb'],
-            activeTypeFilters: ['common', 'personal']
+            activeTypeFilters: ['common', 'personal'],
+            safuSalary: parseFloat(localStorage.getItem('safuSalary')) || 0,
+            labeebSalary: parseFloat(localStorage.getItem('labeebSalary')) || 0,
+            includeCreditCardBill: localStorage.getItem('includeCreditCardBill') !== 'false'
         };
 
         document.getElementById('selectedDate').value = state.selectedDate;
@@ -714,6 +761,20 @@
             document.getElementById('scriptUrl').value = state.scriptUrl;
         } else {
             document.getElementById('warningBox').style.display = 'block';
+        }
+
+        // Load salary values
+        document.getElementById('safuSalary').value = state.safuSalary || '';
+        document.getElementById('labeebSalary').value = state.labeebSalary || '';
+        document.getElementById('ccBillToggle').checked = state.includeCreditCardBill;
+        document.getElementById('ccBillToggleMonthly').checked = state.includeCreditCardBill;
+
+        function saveSalaries() {
+            state.safuSalary = parseFloat(document.getElementById('safuSalary').value) || 0;
+            state.labeebSalary = parseFloat(document.getElementById('labeebSalary').value) || 0;
+            localStorage.setItem('safuSalary', state.safuSalary);
+            localStorage.setItem('labeebSalary', state.labeebSalary);
+            updateUI();
         }
 
         function toggleSettings() {
@@ -903,10 +964,20 @@
             updateUI();
         }
 
+        function toggleCreditCardBill() {
+            state.includeCreditCardBill = document.getElementById('ccBillToggle').checked;
+            document.getElementById('ccBillToggleMonthly').checked = state.includeCreditCardBill;
+            localStorage.setItem('includeCreditCardBill', state.includeCreditCardBill);
+            updateUI();
+        }
+
         function updateUI() {
             const today = state.expenses.filter(e => e.date === state.selectedDate);
             
-            const allCommonExpenses = today.filter(e => e.type === 'common');
+            // Filter out credit card bills if checkbox is unchecked
+            const expensesForCalc = state.includeCreditCardBill ? today : today.filter(e => e.category !== 'credit_card_bill');
+            
+            const allCommonExpenses = expensesForCalc.filter(e => e.type === 'common');
             let safuOwes = 0, labeebOwes = 0;
             
             allCommonExpenses.forEach(exp => {
@@ -922,13 +993,13 @@
                 }
             });
 
-            const safuPersonalTotal = today.filter(e => e.type === 'personal' && e.person === 'safu').reduce((s, e) => s + e.amount, 0);
-            const labeebPersonalTotal = today.filter(e => e.type === 'personal' && e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
+            const safuPersonalTotal = expensesForCalc.filter(e => e.type === 'personal' && e.person === 'safu').reduce((s, e) => s + e.amount, 0);
+            const labeebPersonalTotal = expensesForCalc.filter(e => e.type === 'personal' && e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
             
             const safuTotal = safuOwes + safuPersonalTotal;
             const labeebTotal = labeebOwes + labeebPersonalTotal;
-            const commonTotal = today.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
-            const dailyTotal = today.reduce((s, e) => s + e.amount, 0);
+            const commonTotal = expensesForCalc.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
+            const dailyTotal = expensesForCalc.reduce((s, e) => s + e.amount, 0);
 
             document.getElementById('commonTotal').textContent = '₹' + commonTotal.toFixed(2);
             document.getElementById('dailyTotal').textContent = '₹' + dailyTotal.toFixed(2);
@@ -994,10 +1065,11 @@
             document.getElementById('expensesList').innerHTML = html;
 
             const month = state.expenses.filter(e => e.date.startsWith(state.selectedDate.slice(0, 7)));
-            const monthCommonTotal = month.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
+            const monthFiltered = state.includeCreditCardBill ? month : month.filter(e => e.category !== 'credit_card_bill');
+            const monthCommonTotal = monthFiltered.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
             let monthSafuOwes = 0, monthLabeebOwes = 0;
             
-            month.filter(e => e.type === 'common').forEach(exp => {
+            monthFiltered.filter(e => e.type === 'common').forEach(exp => {
                 if (exp.splitType === '50-50') {
                     monthSafuOwes += exp.amount / 2;
                     monthLabeebOwes += exp.amount / 2;
@@ -1010,13 +1082,28 @@
                 }
             });
             
-            const monthSafuPersonal = month.filter(e => e.type === 'personal' && e.person === 'safu').reduce((s, e) => s + e.amount, 0);
-            const monthLabeebPersonal = month.filter(e => e.type === 'personal' && e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
+            const monthSafuPersonal = monthFiltered.filter(e => e.type === 'personal' && e.person === 'safu').reduce((s, e) => s + e.amount, 0);
+            const monthLabeebPersonal = monthFiltered.filter(e => e.type === 'personal' && e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
 
             document.getElementById('monthCommon').textContent = '₹' + monthCommonTotal.toFixed(2);
             document.getElementById('monthSafu').textContent = (monthSafuOwes + monthSafuPersonal).toFixed(2);
             document.getElementById('monthLabeeb').textContent = (monthLabeebOwes + monthLabeebPersonal).toFixed(2);
             document.getElementById('monthTotal').textContent = (monthCommonTotal + monthSafuOwes + monthLabeebOwes + monthSafuPersonal + monthLabeebPersonal).toFixed(2);
+
+            // Calculate remaining balance
+            const safuTotalExpense = monthSafuOwes + monthSafuPersonal;
+            const labeebTotalExpense = monthLabeebOwes + monthLabeebPersonal;
+            const safuBalance = state.safuSalary - safuTotalExpense;
+            const labeebBalance = state.labeebSalary - labeebTotalExpense;
+
+            document.getElementById('safuBalance').textContent = safuBalance.toFixed(2);
+            document.getElementById('labeebBalance').textContent = labeebBalance.toFixed(2);
+
+            // Color code balance (red if negative, green if positive)
+            const safuBalanceSpan = document.getElementById('safuBalance').parentElement;
+            const labeebBalanceSpan = document.getElementById('labeebBalance').parentElement;
+            safuBalanceSpan.style.color = safuBalance < 0 ? '#d32f2f' : '#1b5e20';
+            labeebBalanceSpan.style.color = labeebBalance < 0 ? '#d32f2f' : '#880e4f';
         }
 
         updateCategoryOptions();
