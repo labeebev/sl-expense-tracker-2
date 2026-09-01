@@ -773,7 +773,7 @@
             syncStatus: 'ready',
             activeCategoryFilters: [],
             activePersonFilters: ['safu', 'labeeb'],
-            activeTypeFilters: ['common', 'personal'],
+            activeTypeFilters: ['common', 'personal', 'credit'],
             safuSalary: parseFloat(localStorage.getItem('safuSalary')) || 0,
             labeebSalary: parseFloat(localStorage.getItem('labeebSalary')) || 0,
             safuMoneyInHand: parseFloat(localStorage.getItem('safuMoneyInHand')) || 0,
@@ -950,7 +950,8 @@
 
             const types = [
                 { id: 'common', label: 'Common', icon: '👥' },
-                { id: 'personal', label: 'Personal', icon: '👤' }
+                { id: 'personal', label: 'Personal', icon: '👤' },
+                { id: 'credit', label: 'Credit', icon: '💵' }
             ];
 
             const typeHtml = types.map(type => {
@@ -1088,7 +1089,7 @@
             
             document.getElementById('contributionContent').innerHTML = contributionHtml;
 
-            // Show BOTH common and personal expenses based on type filter
+            // Show common, personal, and credit expenses based on type filter
             let expensesToShow = today.filter(e => state.activeTypeFilters.includes(e.type));
             
             if (state.activeCategoryFilters.length > 0) {
