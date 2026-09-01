@@ -1056,16 +1056,23 @@
             const safuCredits = today.filter(e => e.type === 'credit' && e.person === 'safu').reduce((s, e) => s + e.amount, 0);
             const labeebCredits = today.filter(e => e.type === 'credit' && e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
             
-            // Net totals = Expenses - Credits
-            const safuTotal = Math.max(0, (safuOwes + safuPersonalTotal) - safuCredits);
-            const labeebTotal = Math.max(0, (labeebOwes + labeebPersonalTotal) - labeebCredits);
+            // Net totals = Expenses - Credits (negative means they have credit)
+            const safuTotal = (safuOwes + safuPersonalTotal) - safuCredits;
+            const labeebTotal = (labeebOwes + labeebPersonalTotal) - labeebCredits;
             const commonTotal = expensesForCalc.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
             const dailyTotal = expensesForCalc.reduce((s, e) => s + e.amount, 0);
 
             document.getElementById('commonTotal').textContent = '₹' + commonTotal.toFixed(2);
             document.getElementById('dailyTotal').textContent = '₹' + dailyTotal.toFixed(2);
-            document.getElementById('safuTotal').textContent = safuTotal.toFixed(2);
-            document.getElementById('labeebTotal').textContent = labeebTotal.toFixed(2);
+            
+            const safuTotalEl = document.getElementById('safuTotal');
+            const labeebTotalEl = document.getElementById('labeebTotal');
+            
+            safuTotalEl.textContent = (safuTotal < 0 ? '-' : '') + '₹' + Math.abs(safuTotal).toFixed(2);
+            safuTotalEl.style.color = safuTotal < 0 ? '#2196F3' : '#16a34a';
+            
+            labeebTotalEl.textContent = (labeebTotal < 0 ? '-' : '') + '₹' + Math.abs(labeebTotal).toFixed(2);
+            labeebTotalEl.style.color = labeebTotal < 0 ? '#2196F3' : '#ec4899';
 
             let contributionHtml = '<div style="margin-bottom: 12px;"><p style="font-size: 11px; color: #666; margin: 0;">Paid:</p>';
             const safuPaid = allCommonExpenses.filter(e => e.person === 'safu').reduce((s, e) => s + e.amount, 0);
@@ -1163,13 +1170,21 @@
             const monthSafuCredits = month.filter(e => e.type === 'credit' && e.person === 'safu').reduce((s, e) => s + e.amount, 0);
             const monthLabeebCredits = month.filter(e => e.type === 'credit' && e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
             
-            // Net amounts = Total - Credits
-            const monthSafuTotal = Math.max(0, (monthSafuOwes + monthSafuPersonal) - monthSafuCredits);
-            const monthLabeebTotal = Math.max(0, (monthLabeebOwes + monthLabeebPersonal) - monthLabeebCredits);
+            // Net amounts = Total - Credits (negative means they have credit)
+            const monthSafuTotal = (monthSafuOwes + monthSafuPersonal) - monthSafuCredits;
+            const monthLabeebTotal = (monthLabeebOwes + monthLabeebPersonal) - monthLabeebCredits;
 
             document.getElementById('monthCommon').textContent = '₹' + monthCommonTotal.toFixed(2);
-            document.getElementById('monthSafu').textContent = monthSafuTotal.toFixed(2);
-            document.getElementById('monthLabeeb').textContent = monthLabeebTotal.toFixed(2);
+            
+            const monthSafuEl = document.getElementById('monthSafu');
+            const monthLabeebEl = document.getElementById('monthLabeeb');
+            
+            monthSafuEl.textContent = (monthSafuTotal < 0 ? '-' : '') + '₹' + Math.abs(monthSafuTotal).toFixed(2);
+            monthSafuEl.style.color = monthSafuTotal < 0 ? '#2196F3' : '#16a34a';
+            
+            monthLabeebEl.textContent = (monthLabeebTotal < 0 ? '-' : '') + '₹' + Math.abs(monthLabeebTotal).toFixed(2);
+            monthLabeebEl.style.color = monthLabeebTotal < 0 ? '#2196F3' : '#ec4899';
+            
             document.getElementById('monthTotal').textContent = (monthCommonTotal + monthSafuTotal + monthLabeebTotal).toFixed(2);
 
             // Calculate remaining balance
