@@ -813,6 +813,13 @@
         document.getElementById('creditsToggle').checked = state.includeCredits;
         document.getElementById('creditsToggleMonthly').checked = state.includeCredits;
 
+        // Auto-load expenses on page startup if URL is set
+        if (state.scriptUrl) {
+            setTimeout(() => {
+                loadExpenses();
+            }, 300); // Small delay to ensure page is fully loaded
+        }
+
         function toggleSettings() {
             document.getElementById('settingsPanel').classList.toggle('active');
         }
@@ -836,7 +843,8 @@
 
         function loadExpenses() {
             if (!state.scriptUrl) {
-                alert('Please setup Google Apps Script URL first');
+                document.getElementById('syncStatus').textContent = 'setup needed';
+                document.getElementById('warningBox').style.display = 'block';
                 return;
             }
             document.getElementById('syncStatus').textContent = 'syncing';
