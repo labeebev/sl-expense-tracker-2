@@ -582,6 +582,11 @@
                 <div class="filter-buttons" id="personFilterButtons"></div>
             </div>
 
+            <div id="typeFilterSection" class="filter-section">
+                <div class="filter-label">Filter by Type</div>
+                <div class="filter-buttons" id="typeFilterButtons"></div>
+            </div>
+
             <div id="commonContributionSection" class="contribution-section">
                 <div class="contribution-title">Common Expense Breakdown</div>
                 <div id="contributionContent"></div>
@@ -700,7 +705,8 @@
             currentType: 'common',
             syncStatus: 'ready',
             activeCategoryFilters: [],
-            activePersonFilters: ['safu', 'labeeb']
+            activePersonFilters: ['safu', 'labeeb'],
+            activeTypeFilters: ['common', 'personal']
         };
 
         document.getElementById('selectedDate').value = state.selectedDate;
@@ -824,10 +830,9 @@
         }
 
         function updateFilterButtons() {
-            const today = state.expenses.filter(e => e.date === state.selectedDate && e.type === 'common');
+            const today = state.expenses.filter(e => e.date === state.selectedDate && state.activeTypeFilters.includes(e.type));
             const categories = [...new Set(today.map(e => e.category))];
             
-            // Initialize filters with all categories if empty
             if (state.activeCategoryFilters.length === 0) {
                 state.activeCategoryFilters = [...categories];
             }
@@ -851,6 +856,18 @@
             }).join('');
             
             document.getElementById('personFilterButtons').innerHTML = personHtml;
+
+            const types = [
+                { id: 'common', label: 'Common', icon: '👥' },
+                { id: 'personal', label: 'Personal', icon: '👤' }
+            ];
+
+            const typeHtml = types.map(type => {
+                const isActive = state.activeTypeFilters.includes(type.id);
+                return `<button type="button" class="filter-btn ${isActive ? 'active' : ''}" onclick="toggleTypeFilter('${type.id}')">${type.icon} ${type.label}</button>`;
+            }).join('');
+            
+            document.getElementById('typeFilterButtons').innerHTML = typeHtml;
         }
 
         function toggleCategoryFilter(category) {
@@ -875,18 +892,20 @@
             updateUI();
         }
 
+        function toggleTypeFilter(type) {
+            const index = state.activeTypeFilters.indexOf(type);
+            if (index > -1) {
+                state.activeTypeFilters.splice(index, 1);
+            } else {
+                state.activeTypeFilters.push(type);
+            }
+            updateFilterButtons();
+            updateUI();
+        }
+
         function updateUI() {
             const today = state.expenses.filter(e => e.date === state.selectedDate);
             
-            let commonToday = today.filter(e => e.type === 'common');
-            
-            if (state.activeCategoryFilters.length > 0) {
-                commonToday = commonToday.filter(e => state.activeCategoryFilters.includes(e.category));
-            }
-
-            commonToday = commonToday.filter(e => state.activePersonFilters.includes(e.person));
-            
-            // Calculate contribution with split type
             const allCommonExpenses = today.filter(e => e.type === 'common');
             let safuOwes = 0, labeebOwes = 0;
             
@@ -916,7 +935,6 @@
             document.getElementById('safuTotal').textContent = safuTotal.toFixed(2);
             document.getElementById('labeebTotal').textContent = labeebTotal.toFixed(2);
 
-            // Contribution breakdown
             let contributionHtml = '<div style="margin-bottom: 12px;"><p style="font-size: 11px; color: #666; margin: 0;">Paid:</p>';
             const safuPaid = allCommonExpenses.filter(e => e.person === 'safu').reduce((s, e) => s + e.amount, 0);
             const labeebPaid = allCommonExpenses.filter(e => e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
@@ -939,21 +957,32 @@
             
             document.getElementById('contributionContent').innerHTML = contributionHtml;
 
+            // Show BOTH common and personal expenses based on type filter
+            let expensesToShow = today.filter(e => state.activeTypeFilters.includes(e.type));
+            
+            if (state.activeCategoryFilters.length > 0) {
+                expensesToShow = expensesToShow.filter(e => state.activeCategoryFilters.includes(e.category));
+            }
+
+            expensesToShow = expensesToShow.filter(e => state.activePersonFilters.includes(e.person));
+
             let html = '';
-            if (commonToday.length === 0) {
+            if (expensesToShow.length === 0) {
                 html = '<div class="empty-state"><p>No expenses matching filters</p></div>';
             } else {
-                html = commonToday.map((exp, i) => {
+                html = expensesToShow.map((exp, i) => {
                     const person = exp.person === 'safu' ? 'Safu' : 'Labeeb';
                     const borderColor = exp.person === 'safu' ? '#22c55e' : '#ec4899';
+                    const typeLabel = exp.type === 'common' ? '[Common]' : '[Personal]';
                     const splitLabel = exp.splitType === '50-50' ? ' (50-50)' : '';
+                    const categories = exp.type === 'common' ? commonCategories : personalCategories;
                     return `<div class="expense-item" style="border-left-color: ${borderColor}">
                         <div class="expense-left">
                             <div class="expense-category">
-                                ${commonCategories.find(c => c.id === exp.category)?.icon || '💰'} ${commonCategories.find(c => c.id === exp.category)?.label || exp.category}
+                                ${categories.find(c => c.id === exp.category)?.icon || '💰'} ${categories.find(c => c.id === exp.category)?.label || exp.category}
                             </div>
                             ${exp.description ? `<div class="expense-description">${exp.description}</div>` : ''}
-                            <p class="expense-meta">${person}${splitLabel}</p>
+                            <p class="expense-meta">${person} ${typeLabel}${splitLabel}</p>
                         </div>
                         <p class="expense-amount">₹${exp.amount.toFixed(2)}</p>
                     </div>`;
