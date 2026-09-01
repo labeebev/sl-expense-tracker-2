@@ -827,9 +827,14 @@
             const today = state.expenses.filter(e => e.date === state.selectedDate && e.type === 'common');
             const categories = [...new Set(today.map(e => e.category))];
             
+            // Initialize filters with all categories if empty
+            if (state.activeCategoryFilters.length === 0) {
+                state.activeCategoryFilters = [...categories];
+            }
+            
             const categoryHtml = categories.map(cat => {
                 const category = commonCategories.find(c => c.id === cat);
-                const isActive = state.activeCategoryFilters.length === 0 || state.activeCategoryFilters.includes(cat);
+                const isActive = state.activeCategoryFilters.includes(cat);
                 return `<button type="button" class="filter-btn ${isActive ? 'active' : ''}" onclick="toggleCategoryFilter('${cat}')">${category.icon} ${category.label}</button>`;
             }).join('');
             
