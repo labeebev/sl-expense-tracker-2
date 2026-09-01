@@ -618,7 +618,7 @@
 
             <div class="filter-section" style="background: #f0f4ff;">
                 <div class="filter-label">Monthly Salary</div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
                     <div>
                         <label style="display: block; margin-bottom: 6px; font-size: 11px; color: #666;">Safu's Salary</label>
                         <input type="number" id="safuSalary" class="form-input" placeholder="0.00" onchange="saveSalaries()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; width: 100%;">
@@ -626,6 +626,18 @@
                     <div>
                         <label style="display: block; margin-bottom: 6px; font-size: 11px; color: #666;">Labeeb's Salary</label>
                         <input type="number" id="labeebSalary" class="form-input" placeholder="0.00" onchange="saveSalaries()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; width: 100%;">
+                    </div>
+                </div>
+
+                <div class="filter-label" style="margin-bottom: 8px;">Money in Hand (Additional Income)</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 6px; font-size: 11px; color: #666;">Safu's Money</label>
+                        <input type="number" id="safuMoneyInHand" class="form-input" placeholder="0.00" onchange="saveSalaries()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; width: 100%;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 6px; font-size: 11px; color: #666;">Labeeb's Money</label>
+                        <input type="number" id="labeebMoneyInHand" class="form-input" placeholder="0.00" onchange="saveSalaries()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; width: 100%;">
                     </div>
                 </div>
             </div>
@@ -753,6 +765,8 @@
             activeTypeFilters: ['common', 'personal'],
             safuSalary: parseFloat(localStorage.getItem('safuSalary')) || 0,
             labeebSalary: parseFloat(localStorage.getItem('labeebSalary')) || 0,
+            safuMoneyInHand: parseFloat(localStorage.getItem('safuMoneyInHand')) || 0,
+            labeebMoneyInHand: parseFloat(localStorage.getItem('labeebMoneyInHand')) || 0,
             includeCreditCardBill: localStorage.getItem('includeCreditCardBill') !== 'false'
         };
 
@@ -766,14 +780,20 @@
         // Load salary values
         document.getElementById('safuSalary').value = state.safuSalary || '';
         document.getElementById('labeebSalary').value = state.labeebSalary || '';
+        document.getElementById('safuMoneyInHand').value = state.safuMoneyInHand || '';
+        document.getElementById('labeebMoneyInHand').value = state.labeebMoneyInHand || '';
         document.getElementById('ccBillToggle').checked = state.includeCreditCardBill;
         document.getElementById('ccBillToggleMonthly').checked = state.includeCreditCardBill;
 
         function saveSalaries() {
             state.safuSalary = parseFloat(document.getElementById('safuSalary').value) || 0;
             state.labeebSalary = parseFloat(document.getElementById('labeebSalary').value) || 0;
+            state.safuMoneyInHand = parseFloat(document.getElementById('safuMoneyInHand').value) || 0;
+            state.labeebMoneyInHand = parseFloat(document.getElementById('labeebMoneyInHand').value) || 0;
             localStorage.setItem('safuSalary', state.safuSalary);
             localStorage.setItem('labeebSalary', state.labeebSalary);
+            localStorage.setItem('safuMoneyInHand', state.safuMoneyInHand);
+            localStorage.setItem('labeebMoneyInHand', state.labeebMoneyInHand);
             updateUI();
         }
 
@@ -965,9 +985,22 @@
         }
 
         function toggleCreditCardBill() {
-            state.includeCreditCardBill = document.getElementById('ccBillToggle').checked;
-            document.getElementById('ccBillToggleMonthly').checked = state.includeCreditCardBill;
+            // Get both checkboxes
+            const dailyCheckbox = document.getElementById('ccBillToggle');
+            const monthlyCheckbox = document.getElementById('ccBillToggleMonthly');
+            
+            // Check which one exists and is visible (to know which tab was clicked)
+            // Just toggle the state based on current state
+            state.includeCreditCardBill = !state.includeCreditCardBill;
+            
+            // Sync both checkboxes to the new state
+            dailyCheckbox.checked = state.includeCreditCardBill;
+            monthlyCheckbox.checked = state.includeCreditCardBill;
+            
+            // Save to localStorage
             localStorage.setItem('includeCreditCardBill', state.includeCreditCardBill);
+            
+            // Update UI
             updateUI();
         }
 
@@ -1093,8 +1126,8 @@
             // Calculate remaining balance
             const safuTotalExpense = monthSafuOwes + monthSafuPersonal;
             const labeebTotalExpense = monthLabeebOwes + monthLabeebPersonal;
-            const safuBalance = state.safuSalary - safuTotalExpense;
-            const labeebBalance = state.labeebSalary - labeebTotalExpense;
+            const safuBalance = (state.safuSalary + state.safuMoneyInHand) - safuTotalExpense;
+            const labeebBalance = (state.labeebSalary + state.labeebMoneyInHand) - labeebTotalExpense;
 
             document.getElementById('safuBalance').textContent = safuBalance.toFixed(2);
             document.getElementById('labeebBalance').textContent = labeebBalance.toFixed(2);
