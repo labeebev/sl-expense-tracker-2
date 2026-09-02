@@ -1061,6 +1061,18 @@
             updateUI();
         }
 
+        function saveSalaries() {
+            state.safuSalary = parseFloat(document.getElementById('safuSalary').value) || 0;
+            state.labeebSalary = parseFloat(document.getElementById('labeebSalary').value) || 0;
+            state.safuMoneyInHand = parseFloat(document.getElementById('safuMoneyInHand').value) || 0;
+            state.labeebMoneyInHand = parseFloat(document.getElementById('labeebMoneyInHand').value) || 0;
+            localStorage.setItem('safuSalary', state.safuSalary);
+            localStorage.setItem('labeebSalary', state.labeebSalary);
+            localStorage.setItem('safuMoneyInHand', state.safuMoneyInHand);
+            localStorage.setItem('labeebMoneyInHand', state.labeebMoneyInHand);
+            updateUI();
+        }
+
         function toggleCreditMode() {
             const isCredit = document.getElementById('creditCheckbox').checked;
             const submitBtn = document.getElementById('submitBtn');
@@ -1239,14 +1251,19 @@
             const safuBalance = (state.safuSalary + state.safuMoneyInHand) - safuTotalExpense;
             const labeebBalance = (state.labeebSalary + state.labeebMoneyInHand) - labeebTotalExpense;
 
-            document.getElementById('safuBalance').textContent = (safuBalance < 0 ? '-' : '') + Math.abs(safuBalance).toFixed(2);
-            document.getElementById('labeebBalance').textContent = (labeebBalance < 0 ? '-' : '') + Math.abs(labeebBalance).toFixed(2);
+            // Display balance with proper formatting
+            const safuBalanceEl = document.getElementById('safuBalance');
+            const labeebBalanceEl = document.getElementById('labeebBalance');
+            
+            safuBalanceEl.textContent = (safuBalance < 0 ? '-' : '') + Math.abs(safuBalance).toFixed(2);
+            labeebBalanceEl.textContent = (labeebBalance < 0 ? '-' : '') + Math.abs(labeebBalance).toFixed(2);
 
-            // Color code balance (red if negative, green if positive)
-            const safuBalanceSpan = document.getElementById('safuBalance').parentElement;
-            const labeebBalanceSpan = document.getElementById('labeebBalance').parentElement;
-            safuBalanceSpan.style.color = safuBalance < 0 ? '#d32f2f' : '#1b5e20';
-            labeebBalanceSpan.style.color = labeebBalance < 0 ? '#d32f2f' : '#880e4f';
+            // Color code balance
+            const safuBalanceParent = safuBalanceEl.parentElement;
+            const labeebBalanceParent = labeebBalanceEl.parentElement;
+            
+            safuBalanceParent.style.color = safuBalance < 0 ? '#d32f2f' : '#1b5e20';
+            labeebBalanceParent.style.color = labeebBalance < 0 ? '#d32f2f' : '#880e4f';
         }
 
         updateCategoryOptions();
