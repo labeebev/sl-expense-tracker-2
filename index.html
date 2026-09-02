@@ -1239,8 +1239,8 @@
             const safuBalance = (state.safuSalary + state.safuMoneyInHand) - safuTotalExpense;
             const labeebBalance = (state.labeebSalary + state.labeebMoneyInHand) - labeebTotalExpense;
 
-            document.getElementById('safuBalance').textContent = safuBalance.toFixed(2);
-            document.getElementById('labeebBalance').textContent = labeebBalance.toFixed(2);
+            document.getElementById('safuBalance').textContent = (safuBalance < 0 ? '-' : '') + Math.abs(safuBalance).toFixed(2);
+            document.getElementById('labeebBalance').textContent = (labeebBalance < 0 ? '-' : '') + Math.abs(labeebBalance).toFixed(2);
 
             // Color code balance (red if negative, green if positive)
             const safuBalanceSpan = document.getElementById('safuBalance').parentElement;
