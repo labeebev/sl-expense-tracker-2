@@ -602,6 +602,13 @@
                 </div>
             </div>
 
+            <div class="filter-section">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="excludeTripDaily" checked onchange="toggleExcludeTrip()" style="width: 18px; height: 18px; cursor: pointer;">
+                    <label for="excludeTripDaily" style="font-size: 12px; font-weight: 500; cursor: pointer; margin: 0;">Exclude Vietnam Trip Expenses</label>
+                </div>
+            </div>
+
             <div id="commonContributionSection" class="contribution-section">
                 <div class="contribution-title">Common Expense Breakdown</div>
                 <div id="contributionContent"></div>
@@ -628,6 +635,13 @@
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="creditsToggleMonthly" checked onchange="toggleCredits()" style="width: 18px; height: 18px; cursor: pointer;">
                     <label for="creditsToggleMonthly" style="font-size: 12px; font-weight: 500; cursor: pointer; margin: 0;">Include Credits (Received)</label>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="excludeTripCheckbox" checked onchange="toggleExcludeTrip()" style="width: 18px; height: 18px; cursor: pointer;">
+                    <label for="excludeTripCheckbox" style="font-size: 12px; font-weight: 500; cursor: pointer; margin: 0;">Exclude Vietnam Trip Expenses</label>
                 </div>
             </div>
 
@@ -796,7 +810,7 @@
             { id: 'outside_food', label: 'Outside Food', icon: '🍔' },
             { id: 'electricity', label: 'Electricity', icon: '⚡' },
             { id: 'chitty', label: 'Chitty', icon: '💳' },
-            { id: 'gift_deposit', label: 'Gift Deposit', icon: '🎁' },
+            { id: 'gift_deposit', label: 'GIFT Deposit', icon: '🎁' },
             { id: 'petrol', label: 'Petrol', icon: '⛽' },
             { id: 'shopping', label: 'Shopping', icon: '🛍️' },
             { id: 'savings', label: 'Savings Fund', icon: '💰' },
@@ -805,7 +819,9 @@
             { id: 'ticket_booking', label: 'Ticket Booking', icon: '🎫' },
             { id: 'flight_ticket', label: 'Flight Ticket', icon: '✈️' },
             { id: 'cab', label: 'Cab', icon: '🚕' },
-            { id: 'currency_exchange', label: 'Currency Exchange', icon: '💱' }
+            { id: 'currency_exchange', label: 'Currency Exchange', icon: '💱' },
+            { id: 'hotel', label: 'Hotel', icon: '🏨' },
+            { id: 'visa', label: 'Visa', icon: '🛂' }
         ];
 
         const personalCategories = [
@@ -814,7 +830,7 @@
             { id: 'outside_food', label: 'Outside Food', icon: '🍔' },
             { id: 'electricity', label: 'Electricity', icon: '⚡' },
             { id: 'chitty', label: 'Chitty', icon: '💳' },
-            { id: 'gift_deposit', label: 'Gift Deposit', icon: '🎁' },
+            { id: 'gift_deposit', label: 'GIFT Deposit', icon: '🎁' },
             { id: 'petrol', label: 'Petrol', icon: '⛽' },
             { id: 'shopping', label: 'Shopping', icon: '🛍️' },
             { id: 'savings', label: 'Savings Fund', icon: '💰' },
@@ -826,7 +842,9 @@
             { id: 'ticket_booking', label: 'Ticket Booking', icon: '🎫' },
             { id: 'flight_ticket', label: 'Flight Ticket', icon: '✈️' },
             { id: 'cab', label: 'Cab', icon: '🚕' },
-            { id: 'currency_exchange', label: 'Currency Exchange', icon: '💱' }
+            { id: 'currency_exchange', label: 'Currency Exchange', icon: '💱' },
+            { id: 'hotel', label: 'Hotel', icon: '🏨' },
+            { id: 'visa', label: 'Visa', icon: '🛂' }
         ];
 
         const creditCategories = [
@@ -848,6 +866,7 @@
             labeebMoneyInHand: parseFloat(localStorage.getItem('labeebMoneyInHand')) || 0,
             includeCreditCardBill: localStorage.getItem('includeCreditCardBill') !== 'false',
             includeCredits: localStorage.getItem('includeCredits') !== 'false',
+            excludeTrip: localStorage.getItem('excludeTrip') !== 'false',
             activeTripCategoryFilters: [],
             activeTripPersonFilters: ['safu', 'labeeb']
         };
@@ -868,6 +887,10 @@
         document.getElementById('ccBillToggleMonthly').checked = state.includeCreditCardBill;
         document.getElementById('creditsToggle').checked = state.includeCredits;
         document.getElementById('creditsToggleMonthly').checked = state.includeCredits;
+        document.getElementById('excludeTripCheckbox').checked = state.excludeTrip;
+        if (document.getElementById('excludeTripDaily')) {
+            document.getElementById('excludeTripDaily').checked = state.excludeTrip;
+        }
 
         // Auto-load expenses on page startup if URL is set
         if (state.scriptUrl) {
@@ -1127,6 +1150,20 @@
             updateUI();
         }
 
+        function toggleExcludeTrip() {
+            // Simple toggle - flip the current state
+            state.excludeTrip = !state.excludeTrip;
+            
+            // Sync both checkboxes to the new state
+            document.getElementById('excludeTripCheckbox').checked = state.excludeTrip;
+            if (document.getElementById('excludeTripDaily')) {
+                document.getElementById('excludeTripDaily').checked = state.excludeTrip;
+            }
+            
+            localStorage.setItem('excludeTrip', state.excludeTrip);
+            updateUI();
+        }
+
         function saveSalaries() {
             state.safuSalary = parseFloat(document.getElementById('safuSalary').value) || 0;
             state.labeebSalary = parseFloat(document.getElementById('labeebSalary').value) || 0;
@@ -1141,7 +1178,10 @@
 
         function updateTripUI() {
             // Filter only trip expenses
-            const tripExpenses = state.expenses.filter(e => e.isTrip);
+            const tripExpenses = state.expenses.filter(e => e.isTrip === true);
+            
+            console.log('Trip expenses count:', tripExpenses.length);
+            console.log('All trip expenses:', tripExpenses);
 
             // For display, apply person filter (but keep common expenses always)
             let filteredTrip = tripExpenses.filter(e => 
@@ -1173,8 +1213,8 @@
             }).join('');
             document.getElementById('tripPersonFilterButtons').innerHTML = personHtml;
 
-            // Calculate totals from ALL trip expenses (not filtered)
-            let commonTotal = 0, safuTotal = 0, labeebTotal = 0;
+            // Calculate totals - Handle Personal vs Common expenses
+            let safuTotal = 0, labeebTotal = 0, commonTotal = 0;
             const categoryBreakdown = {};
 
             tripExpenses.forEach(exp => {
@@ -1183,19 +1223,45 @@
                 }
                 categoryBreakdown[exp.category] += exp.amount;
                 
-                if (exp.type === 'common') {
+                if (exp.type === 'personal') {
+                    // Personal expense - only that person's total
+                    if (exp.person === 'safu') {
+                        safuTotal += exp.amount;
+                        console.log('Safu personal:', exp.amount, '(', exp.category, ')', 'total:', safuTotal);
+                    } else if (exp.person === 'labeeb') {
+                        labeebTotal += exp.amount;
+                        console.log('Labeeb personal:', exp.amount, '(', exp.category, ')', 'total:', labeebTotal);
+                    }
+                } else if (exp.type === 'common') {
+                    // Common expense - add to commonTotal first
                     commonTotal += exp.amount;
-                } else if (exp.person === 'safu') {
-                    safuTotal += exp.amount;
-                } else if (exp.person === 'labeeb') {
-                    labeebTotal += exp.amount;
+                    console.log('Common expense:', exp.amount, '- type:', exp.splitType);
+                    
+                    // Then calculate individual responsibility
+                    if (exp.splitType === '50-50' || exp.splitType === 'half') {
+                        // Split 50-50 between both
+                        safuTotal += exp.amount / 2;
+                        labeebTotal += exp.amount / 2;
+                        console.log('Common 50-50:', exp.amount, 'Safu gets:', exp.amount/2, 'Labeeb gets:', exp.amount/2);
+                    } else {
+                        // Full to payer (full to payer)
+                        if (exp.person === 'safu') {
+                            safuTotal += exp.amount;
+                            console.log('Common full to Safu:', exp.amount, 'total:', safuTotal);
+                        } else if (exp.person === 'labeeb') {
+                            labeebTotal += exp.amount;
+                            console.log('Common full to Labeeb:', exp.amount, 'total:', labeebTotal);
+                        }
+                    }
                 }
             });
+
+            console.log('Final trip totals - Common:', commonTotal, 'Safu:', safuTotal, 'Labeeb:', labeebTotal, 'Total:', commonTotal + safuTotal + labeebTotal);
 
             document.getElementById('tripCommon').textContent = '₹' + commonTotal.toFixed(2);
             document.getElementById('tripSafu').textContent = safuTotal.toFixed(2);
             document.getElementById('tripLabeeb').textContent = labeebTotal.toFixed(2);
-            document.getElementById('tripTotal').textContent = (commonTotal + safuTotal + labeebTotal).toFixed(2);
+            document.getElementById('tripTotal').textContent = (safuTotal + labeebTotal).toFixed(2);
 
             // Show category breakdown
             const breakdownHtml = Object.entries(categoryBreakdown)
@@ -1212,11 +1278,12 @@
                 const category = commonCategories.find(c => c.id === exp.category) || personalCategories.find(c => c.id === exp.category);
                 const categoryIcon = category?.icon || '💰';
                 const categoryLabel = category?.label || exp.category;
+                const typeLabel = exp.type === 'common' ? `${exp.splitType === '50-50' || exp.splitType === 'half' ? '50-50' : 'Full'}` : 'Personal';
                 return `<div class="expense-item" style="border-left-color: ${borderColor}">
                     <div class="expense-left">
                         <div class="expense-category">${categoryIcon} ${categoryLabel}</div>
                         ${exp.description ? `<div class="expense-description">${exp.description}</div>` : ''}
-                        <p class="expense-meta">${exp.date} | ${person}</p>
+                        <p class="expense-meta">${exp.date} | ${person} | ${typeLabel}</p>
                     </div>
                     <p class="expense-amount">₹${exp.amount.toFixed(2)}</p>
                 </div>`;
@@ -1255,7 +1322,12 @@
         }
 
         function updateUI() {
-            const today = state.expenses.filter(e => e.date === state.selectedDate);
+            let today = state.expenses.filter(e => e.date === state.selectedDate);
+            
+            // Filter out trip expenses if excludeTrip is checked
+            if (state.excludeTrip) {
+                today = today.filter(e => !e.isTrip);
+            }
             
             // Filter out credit card bills and credit entries for calculations
             const expensesForCalc = state.includeCreditCardBill 
@@ -1371,7 +1443,11 @@
             }
             document.getElementById('expensesList').innerHTML = html;
 
-            const month = state.expenses.filter(e => e.date.startsWith(state.selectedDate.slice(0, 7)));
+            const month = state.expenses.filter(e => {
+                const isInMonth = e.date.startsWith(state.selectedDate.slice(0, 7));
+                const shouldExcludeTrip = state.excludeTrip && e.isTrip;
+                return isInMonth && !shouldExcludeTrip;
+            });
             const monthFiltered = (state.includeCreditCardBill 
                 ? month.filter(e => e.type !== 'credit') 
                 : month.filter(e => e.category !== 'credit_card_bill' && e.type !== 'credit'));
