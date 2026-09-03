@@ -538,6 +538,7 @@
     <div class="tabs">
         <button class="tab-button active" onclick="switchTab('daily')">📅 Daily</button>
         <button class="tab-button" onclick="switchTab('monthly')">📊 Monthly</button>
+        <button class="tab-button" onclick="switchTab('trip')">✈️ Trip</button>
     </div>
 
     <div class="content">
@@ -688,6 +689,60 @@
                 </div>
             </div>
         </div>
+
+        <div id="tripTab" style="display: none;">
+            <h3 style="margin: 0 0 16px 0; font-size: 16px;">Vietnam Trip Expenses</h3>
+            
+            <div class="filter-section" style="background: #f0f4ff;">
+                <div class="filter-label">Trip Duration</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 6px; font-size: 11px; color: #666;">From Date</label>
+                        <input type="date" id="tripStartDate" class="form-input" onchange="updateTripUI()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; width: 100%;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 6px; font-size: 11px; color: #666;">To Date</label>
+                        <input type="date" id="tripEndDate" class="form-input" onchange="updateTripUI()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; width: 100%;">
+                    </div>
+                </div>
+            </div>
+
+            <div id="tripFilterSection" class="filter-section">
+                <div class="filter-label">Filter by Category</div>
+                <div class="filter-buttons" id="tripCategoryFilterButtons"></div>
+            </div>
+
+            <div id="tripPersonFilterSection" class="filter-section">
+                <div class="filter-label">Filter by Person</div>
+                <div class="filter-buttons" id="tripPersonFilterButtons"></div>
+            </div>
+
+            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Trip Summary</h3>
+            <div class="monthly-summary">
+                <div class="summary-card common">
+                    <p>Common</p>
+                    <p id="tripCommon">₹0.00</p>
+                </div>
+                <div class="summary-card safu">
+                    <p>Safu</p>
+                    <p style="color: #16a34a;">₹<span id="tripSafu">0.00</span></p>
+                </div>
+                <div class="summary-card labeeb">
+                    <p>Labeeb</p>
+                    <p style="color: #ec4899;">₹<span id="tripLabeeb">0.00</span></p>
+                </div>
+            </div>
+            <div class="total-box">
+                <p>Total Trip Expenses</p>
+                <p>₹<span id="tripTotal">0.00</span></p>
+            </div>
+
+            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Breakdown by Category</h3>
+            <div id="tripCategoryBreakdown" style="background: #f5f5f5; padding: 12px; border-radius: 8px; font-size: 12px;"></div>
+
+            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Expenses List</h3>
+            <div id="tripExpensesList" style="max-height: 400px; overflow-y: auto;"></div>
+        </div>
     </div>
 
     <button class="fab" onclick="toggleForm()">+</button>
@@ -756,7 +811,10 @@
             { id: 'savings', label: 'Savings Fund', icon: '💰' },
             { id: 'credit_card_bill', label: 'Credit Card Bill', icon: '💳' },
             { id: 'cash', label: 'Cash', icon: '💵' },
-            { id: 'ticket_booking', label: 'Ticket Booking', icon: '🎫' }
+            { id: 'ticket_booking', label: 'Ticket Booking', icon: '🎫' },
+            { id: 'flight_ticket', label: 'Flight Ticket', icon: '✈️' },
+            { id: 'cab', label: 'Cab', icon: '🚕' },
+            { id: 'currency_exchange', label: 'Currency Exchange', icon: '💱' }
         ];
 
         const personalCategories = [
@@ -774,7 +832,10 @@
             { id: 'insurance', label: 'Insurance', icon: '🛡️' },
             { id: 'credit_card_bill', label: 'Credit Card Bill', icon: '💳' },
             { id: 'cash', label: 'Cash', icon: '💵' },
-            { id: 'ticket_booking', label: 'Ticket Booking', icon: '🎫' }
+            { id: 'ticket_booking', label: 'Ticket Booking', icon: '🎫' },
+            { id: 'flight_ticket', label: 'Flight Ticket', icon: '✈️' },
+            { id: 'cab', label: 'Cab', icon: '🚕' },
+            { id: 'currency_exchange', label: 'Currency Exchange', icon: '💱' }
         ];
 
         const creditCategories = [
@@ -795,7 +856,11 @@
             safuMoneyInHand: parseFloat(localStorage.getItem('safuMoneyInHand')) || 0,
             labeebMoneyInHand: parseFloat(localStorage.getItem('labeebMoneyInHand')) || 0,
             includeCreditCardBill: localStorage.getItem('includeCreditCardBill') !== 'false',
-            includeCredits: localStorage.getItem('includeCredits') !== 'false'
+            includeCredits: localStorage.getItem('includeCredits') !== 'false',
+            tripStartDate: localStorage.getItem('tripStartDate') || '',
+            tripEndDate: localStorage.getItem('tripEndDate') || '',
+            activeTripCategoryFilters: [],
+            activeTripPersonFilters: ['safu', 'labeeb']
         };
 
         document.getElementById('selectedDate').value = state.selectedDate;
@@ -814,6 +879,10 @@
         document.getElementById('ccBillToggleMonthly').checked = state.includeCreditCardBill;
         document.getElementById('creditsToggle').checked = state.includeCredits;
         document.getElementById('creditsToggleMonthly').checked = state.includeCredits;
+
+        // Load trip dates
+        document.getElementById('tripStartDate').value = state.tripStartDate || '';
+        document.getElementById('tripEndDate').value = state.tripEndDate || '';
 
         // Auto-load expenses on page startup if URL is set
         if (state.scriptUrl) {
@@ -874,9 +943,18 @@
         function switchTab(tab) {
             document.getElementById('dailyTab').style.display = tab === 'daily' ? 'block' : 'none';
             document.getElementById('monthlyTab').style.display = tab === 'monthly' ? 'block' : 'none';
+            document.getElementById('tripTab').style.display = tab === 'trip' ? 'block' : 'none';
+            
             document.querySelectorAll('.tab-button').forEach((btn, idx) => {
-                btn.classList.toggle('active', (idx === 0 && tab === 'daily') || (idx === 1 && tab === 'monthly'));
+                btn.classList.toggle('active', 
+                    (idx === 0 && tab === 'daily') || 
+                    (idx === 1 && tab === 'monthly') || 
+                    (idx === 2 && tab === 'trip'));
             });
+            
+            if (tab === 'trip') {
+                updateTripUI();
+            }
         }
 
         function setType(type) {
@@ -1071,6 +1149,122 @@
             localStorage.setItem('safuMoneyInHand', state.safuMoneyInHand);
             localStorage.setItem('labeebMoneyInHand', state.labeebMoneyInHand);
             updateUI();
+        }
+
+        function updateTripUI() {
+            // Get trip dates
+            state.tripStartDate = document.getElementById('tripStartDate').value || '';
+            state.tripEndDate = document.getElementById('tripEndDate').value || '';
+            localStorage.setItem('tripStartDate', state.tripStartDate);
+            localStorage.setItem('tripEndDate', state.tripEndDate);
+
+            if (!state.tripStartDate || !state.tripEndDate) {
+                document.getElementById('tripExpensesList').innerHTML = '<p style="color: #999; font-size: 12px;">Please select trip dates</p>';
+                return;
+            }
+
+            // Filter expenses within trip date range
+            const tripExpenses = state.expenses.filter(e => {
+                const expDate = new Date(e.date);
+                const startDate = new Date(state.tripStartDate);
+                const endDate = new Date(state.tripEndDate);
+                return expDate >= startDate && expDate <= endDate;
+            });
+
+            // Apply person filter
+            let filteredTrip = tripExpenses.filter(e => state.activeTripPersonFilters.includes(e.person));
+
+            // Apply category filter if any selected
+            if (state.activeTripCategoryFilters.length > 0) {
+                filteredTrip = filteredTrip.filter(e => state.activeTripCategoryFilters.includes(e.category));
+            }
+
+            // Update category filter buttons
+            const tripCategories = new Set();
+            tripExpenses.forEach(e => tripCategories.add(e.category));
+            const categoryHtml = Array.from(tripCategories).map(cat => {
+                const category = commonCategories.find(c => c.id === cat) || personalCategories.find(c => c.id === cat);
+                const isActive = state.activeTripCategoryFilters.includes(cat);
+                return `<button type="button" class="filter-btn ${isActive ? 'active' : ''}" onclick="toggleTripCategoryFilter('${cat}')">${category?.icon || '💰'} ${category?.label || cat}</button>`;
+            }).join('');
+            document.getElementById('tripCategoryFilterButtons').innerHTML = categoryHtml;
+
+            // Update person filter buttons
+            const personHtml = [
+                { id: 'safu', label: 'Safu', icon: '👤' },
+                { id: 'labeeb', label: 'Labeeb', icon: '👤' }
+            ].map(person => {
+                const isActive = state.activeTripPersonFilters.includes(person.id);
+                return `<button type="button" class="filter-btn ${isActive ? 'active' : ''}" onclick="toggleTripPersonFilter('${person.id}')">${person.icon} ${person.label}</button>`;
+            }).join('');
+            document.getElementById('tripPersonFilterButtons').innerHTML = personHtml;
+
+            // Calculate totals
+            let commonTotal = 0, safuTotal = 0, labeebTotal = 0;
+            const categoryBreakdown = {};
+
+            filteredTrip.forEach(exp => {
+                categoryBreakdown[exp.category] = (categoryBreakdown[exp.category] || 0) + exp.amount;
+                
+                if (exp.type === 'common') {
+                    commonTotal += exp.amount;
+                } else if (exp.person === 'safu') {
+                    safuTotal += exp.amount;
+                } else if (exp.person === 'labeeb') {
+                    labeebTotal += exp.amount;
+                }
+            });
+
+            document.getElementById('tripCommon').textContent = '₹' + commonTotal.toFixed(2);
+            document.getElementById('tripSafu').textContent = safuTotal.toFixed(2);
+            document.getElementById('tripLabeeb').textContent = labeebTotal.toFixed(2);
+            document.getElementById('tripTotal').textContent = (commonTotal + safuTotal + labeebTotal).toFixed(2);
+
+            // Show category breakdown
+            const breakdownHtml = Object.entries(categoryBreakdown)
+                .map(([cat, amount]) => {
+                    const category = commonCategories.find(c => c.id === cat) || personalCategories.find(c => c.id === cat);
+                    return `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #ddd;"><span>${category?.icon || '💰'} ${category?.label || cat}</span><span>₹${amount.toFixed(2)}</span></div>`;
+                }).join('');
+            document.getElementById('tripCategoryBreakdown').innerHTML = breakdownHtml || '<p style="color: #999; font-size: 12px;">No expenses for selected filters</p>';
+
+            // Show expense list
+            const expenseHtml = filteredTrip.map(exp => {
+                const person = exp.person === 'safu' ? 'Safu' : 'Labeeb';
+                const borderColor = exp.person === 'safu' ? '#22c55e' : '#ec4899';
+                const category = commonCategories.find(c => c.id === exp.category) || personalCategories.find(c => c.id === exp.category);
+                const categoryIcon = category?.icon || '💰';
+                const categoryLabel = category?.label || exp.category;
+                return `<div class="expense-item" style="border-left-color: ${borderColor}">
+                    <div class="expense-left">
+                        <div class="expense-category">${categoryIcon} ${categoryLabel}</div>
+                        ${exp.description ? `<div class="expense-description">${exp.description}</div>` : ''}
+                        <p class="expense-meta">${exp.date} | ${person}</p>
+                    </div>
+                    <p class="expense-amount">₹${exp.amount.toFixed(2)}</p>
+                </div>`;
+            }).join('');
+            document.getElementById('tripExpensesList').innerHTML = expenseHtml || '<p style="color: #999; font-size: 12px;">No expenses for this trip</p>';
+        }
+
+        function toggleTripCategoryFilter(category) {
+            const index = state.activeTripCategoryFilters.indexOf(category);
+            if (index > -1) {
+                state.activeTripCategoryFilters.splice(index, 1);
+            } else {
+                state.activeTripCategoryFilters.push(category);
+            }
+            updateTripUI();
+        }
+
+        function toggleTripPersonFilter(person) {
+            const index = state.activeTripPersonFilters.indexOf(person);
+            if (index > -1) {
+                state.activeTripPersonFilters.splice(index, 1);
+            } else {
+                state.activeTripPersonFilters.push(person);
+            }
+            updateTripUI();
         }
 
         function toggleCreditMode() {
