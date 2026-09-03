@@ -1143,8 +1143,10 @@
             // Filter only trip expenses
             const tripExpenses = state.expenses.filter(e => e.isTrip);
 
-            // Apply person filter
-            let filteredTrip = tripExpenses.filter(e => state.activeTripPersonFilters.includes(e.person));
+            // For display, apply person filter (but keep common expenses always)
+            let filteredTrip = tripExpenses.filter(e => 
+                e.type === 'common' || state.activeTripPersonFilters.includes(e.person)
+            );
 
             // Apply category filter if any selected
             if (state.activeTripCategoryFilters.length > 0) {
@@ -1171,11 +1173,11 @@
             }).join('');
             document.getElementById('tripPersonFilterButtons').innerHTML = personHtml;
 
-            // Calculate totals
+            // Calculate totals from ALL trip expenses (not filtered)
             let commonTotal = 0, safuTotal = 0, labeebTotal = 0;
             const categoryBreakdown = {};
 
-            filteredTrip.forEach(exp => {
+            tripExpenses.forEach(exp => {
                 if (!categoryBreakdown[exp.category]) {
                     categoryBreakdown[exp.category] = 0;
                 }
@@ -1203,7 +1205,7 @@
                 }).join('');
             document.getElementById('tripCategoryBreakdown').innerHTML = breakdownHtml || '<p style="color: #999; font-size: 12px;">No expenses in trip</p>';
 
-            // Show expense list
+            // Show expense list (use filtered for display)
             const expenseHtml = filteredTrip.map(exp => {
                 const person = exp.person === 'safu' ? 'Safu' : 'Labeeb';
                 const borderColor = exp.person === 'safu' ? '#22c55e' : '#ec4899';
