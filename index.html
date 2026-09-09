@@ -704,7 +704,22 @@
             </div>
             <div id="commonExtraSection" style="background: #f0f4ff; padding: 12px; border-radius: 8px; font-size: 12px; text-align: center; margin-bottom: 16px;"></div>
 
-            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Balance in Hand</h3>
+            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Credits Breakdown</h3>
+            <div class="monthly-summary">
+                <div class="summary-card">
+                    <p>Common Credits</p>
+                    <p style="color: #2e7d32; font-size: 14px;">₹<span id="monthCommonCredits">0.00</span></p>
+                </div>
+                <div class="summary-card">
+                    <p>Personal Credits</p>
+                    <p style="color: #2e7d32; font-size: 14px;">₹<span id="monthPersonalCredits">0.00</span></p>
+                </div>
+            </div>
+
+            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px; font-size: 12px; margin-bottom: 16px;">
+                <p style="margin: 6px 0;"><strong>Safu:</strong> Common ₹<span id="monthSafuCommonCr">0.00</span> + Personal ₹<span id="monthSafuPersonalCr">0.00</span></p>
+                <p style="margin: 6px 0;"><strong>Labeeb:</strong> Common ₹<span id="monthLabeebCommonCr">0.00</span> + Personal ₹<span id="monthLabeebPersonalCr">0.00</span></p>
+            </div>
             <div class="monthly-summary">
                 <div class="summary-card safu">
                     <p style="color: #2e7d32;">Safu Balance</p>
@@ -763,7 +778,22 @@
             </div>
             <div id="tripCommonExtraSection" style="background: #f0f4ff; padding: 12px; border-radius: 8px; font-size: 12px; text-align: center; margin-bottom: 16px;"></div>
 
-            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Breakdown by Category</h3>
+            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Trip Credits Breakdown</h3>
+            <div class="monthly-summary">
+                <div class="summary-card">
+                    <p>Common Credits</p>
+                    <p style="color: #2e7d32; font-size: 14px;">₹<span id="tripCommonCredits">0.00</span></p>
+                </div>
+                <div class="summary-card">
+                    <p>Personal Credits</p>
+                    <p style="color: #2e7d32; font-size: 14px;">₹<span id="tripPersonalCredits">0.00</span></p>
+                </div>
+            </div>
+
+            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px; font-size: 12px; margin-bottom: 16px;">
+                <p style="margin: 6px 0;"><strong>Safu:</strong> Common ₹<span id="tripSafuCommonCr">0.00</span> + Personal ₹<span id="tripSafuPersonalCr">0.00</span></p>
+                <p style="margin: 6px 0;"><strong>Labeeb:</strong> Common ₹<span id="tripLabeebCommonCr">0.00</span> + Personal ₹<span id="tripLabeebPersonalCr">0.00</span></p>
+            </div>
             <div id="tripCategoryBreakdown" style="background: #f5f5f5; padding: 12px; border-radius: 8px; font-size: 12px;"></div>
 
             <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Trip Expense List</h3>
@@ -818,6 +848,14 @@
             <div style="display: flex; align-items: center; gap: 8px;">
                 <input type="checkbox" id="creditCheckbox" onchange="toggleCreditMode()" style="width: 18px; height: 18px; cursor: pointer;">
                 <label for="creditCheckbox" style="font-size: 12px; cursor: pointer; margin: 0;">Add as Credit</label>
+            </div>
+
+            <div id="creditTypeSection" style="display: none;">
+                <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500;">Credit Type</label>
+                <div class="type-buttons">
+                    <button type="button" class="type-btn active" id="creditTypeCommon" onclick="setCreditType('common')" style="background: #ff9800; color: white;">Common</button>
+                    <button type="button" class="type-btn" id="creditTypePersonal" onclick="setCreditType('personal')">Personal</button>
+                </div>
             </div>
 
             <div style="display: flex; align-items: center; gap: 8px;">
@@ -882,6 +920,7 @@
             scriptUrl: localStorage.getItem('scriptUrl') || '',
             selectedDate: new Date().toISOString().split('T')[0],
             currentType: 'common',
+            creditType: 'common',
             syncStatus: 'ready',
             activeCategoryFilters: [],
             activePersonFilters: ['safu', 'labeeb'],
@@ -1038,7 +1077,8 @@
                 amount: amount,
                 splitType: (state.currentType === 'common' && !isCredit) ? document.getElementById('splitTypeSelect').value : 'full',
                 timestamp: new Date().toISOString(),
-                isTrip: isTrip
+                isTrip: isTrip,
+                creditType: isCredit ? state.creditType : 'personal'
             };
 
             document.getElementById('submitBtn').disabled = true;
@@ -1242,6 +1282,8 @@
             // Calculate totals - Handle Personal vs Common expenses
             let safuTotal = 0, labeebTotal = 0, commonTotal = 0;
             let tripSafuCovered = 0, tripLabeebCovered = 0;
+            let tripSafuCommonCredits = 0, tripSafuPersonalCredits = 0;
+            let tripLabeebCommonCredits = 0, tripLabeebPersonalCredits = 0;
             const categoryBreakdown = {};
 
             tripExpenses.forEach(exp => {
@@ -1250,7 +1292,22 @@
                 }
                 categoryBreakdown[exp.category] += exp.amount;
                 
-                if (exp.type === 'personal') {
+                if (exp.type === 'credit') {
+                    // Track credits by type and person
+                    if (exp.creditType === 'common') {
+                        if (exp.person === 'safu') {
+                            tripSafuCommonCredits += exp.amount;
+                        } else if (exp.person === 'labeeb') {
+                            tripLabeebCommonCredits += exp.amount;
+                        }
+                    } else if (exp.creditType === 'personal') {
+                        if (exp.person === 'safu') {
+                            tripSafuPersonalCredits += exp.amount;
+                        } else if (exp.person === 'labeeb') {
+                            tripLabeebPersonalCredits += exp.amount;
+                        }
+                    }
+                } else if (exp.type === 'personal') {
                     // Personal expense - only that person's total
                     if (exp.person === 'safu') {
                         safuTotal += exp.amount;
@@ -1316,6 +1373,16 @@
             }
             document.getElementById('tripCommonExtraSection').innerHTML = tripExtraHtml;
 
+            // Display trip credits breakdown
+            const tripTotalCommonCredits = tripSafuCommonCredits + tripLabeebCommonCredits;
+            const tripTotalPersonalCredits = tripSafuPersonalCredits + tripLabeebPersonalCredits;
+            document.getElementById('tripCommonCredits').textContent = tripTotalCommonCredits.toFixed(2);
+            document.getElementById('tripPersonalCredits').textContent = tripTotalPersonalCredits.toFixed(2);
+            document.getElementById('tripSafuCommonCr').textContent = tripSafuCommonCredits.toFixed(2);
+            document.getElementById('tripSafuPersonalCr').textContent = tripSafuPersonalCredits.toFixed(2);
+            document.getElementById('tripLabeebCommonCr').textContent = tripLabeebCommonCredits.toFixed(2);
+            document.getElementById('tripLabeebPersonalCr').textContent = tripLabeebPersonalCredits.toFixed(2);
+
             // Show category breakdown
             const breakdownHtml = Object.entries(categoryBreakdown)
                 .map(([cat, amount]) => {
@@ -1368,10 +1435,22 @@
             const isCredit = document.getElementById('creditCheckbox').checked;
             const submitBtn = document.getElementById('submitBtn');
             const personLabel = document.querySelector('#personField label');
+            const creditTypeSection = document.getElementById('creditTypeSection');
             
             submitBtn.textContent = isCredit ? 'Add Credit' : 'Add Expense';
             submitBtn.style.background = isCredit ? '#ff9800' : '#667eea';
             personLabel.textContent = isCredit ? 'Who Got?' : 'Who Paid?';
+            creditTypeSection.style.display = isCredit ? 'block' : 'none';
+        }
+
+        function setCreditType(type) {
+            state.creditType = type;
+            document.getElementById('creditTypeCommon').classList.toggle('active', type === 'common');
+            document.getElementById('creditTypePersonal').classList.toggle('active', type === 'personal');
+            document.getElementById('creditTypeCommon').style.background = type === 'common' ? '#ff9800' : '';
+            document.getElementById('creditTypeCommon').style.color = type === 'common' ? 'white' : '';
+            document.getElementById('creditTypePersonal').style.background = type === 'personal' ? '#667eea' : '';
+            document.getElementById('creditTypePersonal').style.color = type === 'personal' ? 'white' : '';
         }
 
         function updateUI() {
@@ -1524,9 +1603,14 @@
             const monthSafuPersonal = monthFiltered.filter(e => e.type === 'personal' && e.person === 'safu').reduce((s, e) => s + e.amount, 0);
             const monthLabeebPersonal = monthFiltered.filter(e => e.type === 'personal' && e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
             
-            // Calculate credits for each person in the month
-            const monthSafuCredits = (state.includeCredits ? month : []).filter(e => e.type === 'credit' && e.person === 'safu').reduce((s, e) => s + e.amount, 0);
-            const monthLabeebCredits = (state.includeCredits ? month : []).filter(e => e.type === 'credit' && e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
+            // Calculate credits for each person in the month (common and personal separately)
+            const monthSafuCommonCredits = (state.includeCredits ? month : []).filter(e => e.type === 'credit' && e.person === 'safu' && e.creditType === 'common').reduce((s, e) => s + e.amount, 0);
+            const monthSafuPersonalCredits = (state.includeCredits ? month : []).filter(e => e.type === 'credit' && e.person === 'safu' && e.creditType === 'personal').reduce((s, e) => s + e.amount, 0);
+            const monthSafuCredits = monthSafuCommonCredits + monthSafuPersonalCredits;
+            
+            const monthLabeebCommonCredits = (state.includeCredits ? month : []).filter(e => e.type === 'credit' && e.person === 'labeeb' && e.creditType === 'common').reduce((s, e) => s + e.amount, 0);
+            const monthLabeebPersonalCredits = (state.includeCredits ? month : []).filter(e => e.type === 'credit' && e.person === 'labeeb' && e.creditType === 'personal').reduce((s, e) => s + e.amount, 0);
+            const monthLabeebCredits = monthLabeebCommonCredits + monthLabeebPersonalCredits;
             
             // Net amounts = Total - Credits (negative means they have credit)
             const monthSafuTotal = (monthSafuOwes + monthSafuPersonal) - monthSafuCredits;
@@ -1560,6 +1644,16 @@
                 extraHtml = `<p style="color: #666; margin: 0;">Split equally ✓</p>`;
             }
             document.getElementById('commonExtraSection').innerHTML = extraHtml;
+            
+            // Display credits breakdown
+            const monthTotalCommonCredits = monthSafuCommonCredits + monthLabeebCommonCredits;
+            const monthTotalPersonalCredits = monthSafuPersonalCredits + monthLabeebPersonalCredits;
+            document.getElementById('monthCommonCredits').textContent = monthTotalCommonCredits.toFixed(2);
+            document.getElementById('monthPersonalCredits').textContent = monthTotalPersonalCredits.toFixed(2);
+            document.getElementById('monthSafuCommonCr').textContent = monthSafuCommonCredits.toFixed(2);
+            document.getElementById('monthSafuPersonalCr').textContent = monthSafuPersonalCredits.toFixed(2);
+            document.getElementById('monthLabeebCommonCr').textContent = monthLabeebCommonCredits.toFixed(2);
+            document.getElementById('monthLabeebPersonalCr').textContent = monthLabeebPersonalCredits.toFixed(2);
             
             const monthSafuEl = document.getElementById('monthSafu');
             const monthLabeebEl = document.getElementById('monthLabeeb');
