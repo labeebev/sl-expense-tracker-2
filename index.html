@@ -564,14 +564,16 @@
 
             <div class="summary-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 16px;">
                 <div class="summary-card safu">
-                    <p style="color: #2e7d32; font-weight: 600;">Safu</p>
+                    <p style="color: #2e7d32; font-weight: 600;">Safu (Personal)</p>
                     <p style="color: #1b5e20;">₹<span id="safuTotal">0.00</span></p>
                 </div>
                 <div class="summary-card labeeb">
-                    <p style="color: #c2185b; font-weight: 600;">Labeeb</p>
+                    <p style="color: #c2185b; font-weight: 600;">Labeeb (Personal)</p>
                     <p style="color: #880e4f;">₹<span id="labeebTotal">0.00</span></p>
                 </div>
             </div>
+
+            <div id="personalCreditsSection" style="background: #f5f5f5; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 12px;"></div>
 
             <div id="categoryFilterSection" class="filter-section">
                 <div class="filter-label">Filter by Category</div>
@@ -675,15 +677,15 @@
             <div class="monthly-summary">
                 <div class="summary-card common">
                     <p>Common</p>
-                    <p id="monthCommon">₹0.00</p>
+                    <p id="monthCommon" style="cursor: pointer; text-decoration: underline;">₹0.00</p>
                 </div>
                 <div class="summary-card safu">
                     <p>Safu Total</p>
-                    <p style="color: #16a34a;">₹<span id="monthSafu">0.00</span></p>
+                    <p style="color: #16a34a;">₹<span id="monthSafu" style="cursor: pointer; text-decoration: underline;">0.00</span></p>
                 </div>
                 <div class="summary-card labeeb">
                     <p>Labeeb Total</p>
-                    <p style="color: #ec4899;">₹<span id="monthLabeeb">0.00</span></p>
+                    <p style="color: #ec4899;">₹<span id="monthLabeeb" style="cursor: pointer; text-decoration: underline;">0.00</span></p>
                 </div>
             </div>
             <div class="total-box">
@@ -728,6 +730,31 @@
                 <div class="summary-card labeeb">
                     <p style="color: #c2185b;">Labeeb Balance</p>
                     <p style="color: #880e4f; font-size: 16px;">₹<span id="labeebBalance">0.00</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for viewing detailed common expenses -->
+        <div id="expensesModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;">
+            <div style="background: white; margin: 20px auto; border-radius: 12px; max-width: 600px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 id="modalTitle" style="margin: 0; font-size: 18px; font-weight: 600;">Common Expenses</h2>
+                    <button onclick="closeExpensesModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">×</button>
+                </div>
+                
+                <div style="display: flex; gap: 8px; margin-bottom: 12px; justify-content: center;">
+                    <button onclick="sortExpensesModal('date')" id="sortByDateBtn" style="padding: 8px 12px; border: 2px solid #667eea; background: #667eea; color: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s;">📅 Date</button>
+                    <button onclick="sortExpensesModal('amount')" id="sortByAmountBtn" style="padding: 8px 12px; border: 2px solid #ddd; background: white; color: #666; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s;">💰 Amount</button>
+                </div>
+                
+                <div id="typeFilterSection" style="display: none; flex-gap: 8px; margin-bottom: 12px; justify-content: center; display: flex; gap: 8px;">
+                    <button onclick="filterExpensesByType('all')" id="filterAllBtn" style="padding: 6px 10px; border: 2px solid #ddd; background: white; color: #666; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;">All</button>
+                    <button onclick="filterExpensesByType('common')" id="filterCommonBtn" style="padding: 6px 10px; border: 2px solid #ddd; background: white; color: #666; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;">Common</button>
+                    <button onclick="filterExpensesByType('personal')" id="filterPersonalBtn" style="padding: 6px 10px; border: 2px solid #ddd; background: white; color: #666; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;">Personal</button>
+                </div>
+                
+                <div id="modalContent" style="max-height: 60vh; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px;">
+                    <!-- Will be filled by JavaScript -->
                 </div>
             </div>
         </div>
@@ -933,7 +960,14 @@
             includeCredits: localStorage.getItem('includeCredits') !== 'false',
             excludeTrip: localStorage.getItem('excludeTrip') !== 'false',
             activeTripCategoryFilters: [],
-            activeTripPersonFilters: ['safu', 'labeeb']
+            activeTripPersonFilters: ['safu', 'labeeb'],
+            modalSort: 'date',
+            modalSortDirection: 'desc',
+            modalExpenses: [],
+            modalPerson: '',
+            modalTab: '',
+            modalType: 'covered',
+            typeFilter: 'all'
         };
 
         document.getElementById('selectedDate').value = state.selectedDate;
@@ -1010,6 +1044,13 @@
 
         function updateDate() {
             state.selectedDate = document.getElementById('selectedDate').value;
+            
+            // Reset all filters to default (show all)
+            state.activeCategoryFilters = [];
+            state.activePersonFilters = ['safu', 'labeeb'];
+            state.activeTypeFilters = ['common', 'personal', 'credit'];
+            
+            updateFilterButtons();
             updateUI();
         }
 
@@ -1212,8 +1253,9 @@
             // Save to localStorage
             localStorage.setItem('includeCredits', state.includeCredits);
             
-            // Update UI
+            // Update all UIs (daily, monthly, and trip)
             updateUI();
+            updateTripUI();
         }
 
         function toggleExcludeTrip() {
@@ -1350,17 +1392,33 @@
 
             console.log('Final trip totals - Common:', commonTotal, 'Safu:', safuTotal, 'Labeeb:', labeebTotal, 'Total:', commonTotal + safuTotal + labeebTotal);
 
-            document.getElementById('tripCommon').textContent = '₹' + commonTotal.toFixed(2);
+            // Calculate net common total after credits (if includeCredits is true)
+            const tripCommonCreditsTotal = state.includeCredits ? (tripSafuCommonCredits + tripLabeebCommonCredits) : 0;
+            const tripCommonNet = commonTotal - tripCommonCreditsTotal;
+
+            document.getElementById('tripCommon').textContent = '₹' + tripCommonNet.toFixed(2);
             document.getElementById('tripSafu').textContent = safuTotal.toFixed(2);
             document.getElementById('tripLabeeb').textContent = labeebTotal.toFixed(2);
             document.getElementById('tripTotal').textContent = (safuTotal + labeebTotal).toFixed(2);
 
             // Display who covered common expenses
-            document.getElementById('tripSafuCovered').textContent = tripSafuCovered.toFixed(2);
-            document.getElementById('tripLabeebCovered').textContent = tripLabeebCovered.toFixed(2);
+            console.log('Trip Covered - Safu:', tripSafuCovered, 'Labeeb:', tripLabeebCovered);
             
-            // Show who paid extra after equal split
-            const tripFairShare = commonTotal / 2;
+            const tripSafuCoveredEl = document.getElementById('tripSafuCovered');
+            const tripLabeebCoveredEl = document.getElementById('tripLabeebCovered');
+            
+            tripSafuCoveredEl.textContent = tripSafuCovered.toFixed(2);
+            tripSafuCoveredEl.style.cursor = 'pointer';
+            tripSafuCoveredEl.style.textDecoration = 'underline';
+            tripSafuCoveredEl.onclick = () => showExpensesModal('safu', 'trip');
+            
+            tripLabeebCoveredEl.textContent = tripLabeebCovered.toFixed(2);
+            tripLabeebCoveredEl.style.cursor = 'pointer';
+            tripLabeebCoveredEl.style.textDecoration = 'underline';
+            tripLabeebCoveredEl.onclick = () => showExpensesModal('labeeb', 'trip');
+            
+            // Show who paid extra after equal split - use NET amount (after credits if included)
+            const tripFairShare = tripCommonNet / 2;
             let tripExtraHtml = '';
             if (tripSafuCovered > tripFairShare) {
                 const extra = tripSafuCovered - tripFairShare;
@@ -1368,7 +1426,7 @@
             } else if (tripLabeebCovered > tripFairShare) {
                 const extra = tripLabeebCovered - tripFairShare;
                 tripExtraHtml = `<p style="color: #ec4899; font-weight: 600; margin: 0;">Labeeb paid ₹${extra.toFixed(2)} extra</p>`;
-            } else if (tripSafuCovered === tripLabeebCovered && commonTotal > 0) {
+            } else if (tripSafuCovered === tripLabeebCovered && tripCommonNet > 0) {
                 tripExtraHtml = `<p style="color: #666; margin: 0;">Split equally ✓</p>`;
             }
             document.getElementById('tripCommonExtraSection').innerHTML = tripExtraHtml;
@@ -1431,6 +1489,321 @@
             updateTripUI();
         }
 
+        function showExpensesModal(person, tab) {
+            const modal = document.getElementById('expensesModal');
+            const title = document.getElementById('modalTitle');
+            
+            const personName = person === 'safu' ? 'Safu' : 'Labeeb';
+            title.textContent = `${personName} - Common Expenses Covered`;
+            
+            // Store state for sorting
+            state.modalPerson = person;
+            state.modalTab = tab;
+            state.modalSort = 'date';
+            state.modalSortDirection = 'desc';
+            state.modalType = 'covered';
+            
+            let filteredExpenses = [];
+            
+            if (tab === 'monthly') {
+                // Get current month
+                const month = state.expenses.filter(e => {
+                    const isInMonth = e.date.startsWith(state.selectedDate.slice(0, 7));
+                    const shouldExcludeTrip = state.excludeTrip && e.isTrip;
+                    return isInMonth && !shouldExcludeTrip;
+                });
+                
+                // Filter for common expenses by this person
+                filteredExpenses = month.filter(e => e.type === 'common' && e.person === person);
+            } else if (tab === 'trip') {
+                // Get all trip expenses
+                const tripExpenses = state.expenses.filter(e => e.isTrip === true);
+                
+                // Filter for common expenses by this person
+                filteredExpenses = tripExpenses.filter(e => e.type === 'common' && e.person === person);
+            }
+            
+            state.modalExpenses = filteredExpenses;
+            
+            // Reset sort buttons
+            document.getElementById('sortByDateBtn').style.background = '#667eea';
+            document.getElementById('sortByDateBtn').style.color = 'white';
+            document.getElementById('sortByDateBtn').style.borderColor = '#667eea';
+            document.getElementById('sortByAmountBtn').style.background = 'white';
+            document.getElementById('sortByAmountBtn').style.color = '#666';
+            document.getElementById('sortByAmountBtn').style.borderColor = '#ddd';
+            
+            renderExpensesModal();
+            modal.style.display = 'block';
+        }
+        
+        function sortExpensesModal(sortBy) {
+            if (state.modalSort === sortBy) {
+                // Toggle direction if same sort
+                state.modalSortDirection = state.modalSortDirection === 'desc' ? 'asc' : 'desc';
+            } else {
+                // Change sort type
+                state.modalSort = sortBy;
+                state.modalSortDirection = 'desc';
+            }
+            
+            // Update button styles
+            document.getElementById('sortByDateBtn').style.background = sortBy === 'date' ? '#667eea' : 'white';
+            document.getElementById('sortByDateBtn').style.color = sortBy === 'date' ? 'white' : '#666';
+            document.getElementById('sortByDateBtn').style.borderColor = sortBy === 'date' ? '#667eea' : '#ddd';
+            
+            document.getElementById('sortByAmountBtn').style.background = sortBy === 'amount' ? '#667eea' : 'white';
+            document.getElementById('sortByAmountBtn').style.color = sortBy === 'amount' ? 'white' : '#666';
+            document.getElementById('sortByAmountBtn').style.borderColor = sortBy === 'amount' ? '#667eea' : '#ddd';
+            
+            // Render with appropriate function based on modal type
+            if (state.modalType === 'covered') {
+                renderExpensesModal();
+            } else if (state.modalType === 'total') {
+                renderExpensesModalByTotal();
+            }
+        }
+        
+        function renderExpensesModal() {
+            const content = document.getElementById('modalContent');
+            let filteredExpenses = [...state.modalExpenses];
+            
+            // Apply sorting
+            if (state.modalSort === 'date') {
+                filteredExpenses.sort((a, b) => {
+                    const dateA = new Date(a.date);
+                    const dateB = new Date(b.date);
+                    return state.modalSortDirection === 'desc' ? dateB - dateA : dateA - dateB;
+                });
+            } else if (state.modalSort === 'amount') {
+                filteredExpenses.sort((a, b) => {
+                    return state.modalSortDirection === 'desc' ? b.amount - a.amount : a.amount - b.amount;
+                });
+            }
+            
+            // Generate HTML
+            if (filteredExpenses.length === 0) {
+                content.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No common expenses for this period</p>';
+            } else {
+                let html = '';
+                let total = 0;
+                
+                filteredExpenses.forEach(exp => {
+                    total += exp.amount;
+                    const category = commonCategories.find(c => c.id === exp.category);
+                    const categoryIcon = category?.icon || '💰';
+                    const categoryLabel = category?.label || exp.category;
+                    const splitInfo = exp.splitType === '50-50' || exp.splitType === 'half' ? '(50-50 split)' : '(Full to payer)';
+                    
+                    html += `
+                        <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="flex: 1;">
+                                <p style="margin: 0 0 4px 0; font-weight: 500;">
+                                    ${categoryIcon} ${categoryLabel}
+                                </p>
+                                <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">
+                                    ${exp.date} ${exp.description ? '• ' + exp.description : ''}
+                                </p>
+                                <p style="margin: 0; font-size: 11px; color: #999;">
+                                    ${splitInfo}
+                                </p>
+                            </div>
+                            <p style="margin: 0; font-weight: 600; color: #16a34a; min-width: 80px; text-align: right;">
+                                ₹${exp.amount.toFixed(2)}
+                            </p>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                    <div style="padding: 12px; background: #f5f5f5; border-top: 2px solid #e0e0e0; display: flex; justify-content: space-between; font-weight: 600;">
+                        <span>Total</span>
+                        <span style="color: #16a34a;">₹${total.toFixed(2)}</span>
+                    </div>
+                `;
+                
+                content.innerHTML = html;
+            }
+        }
+        
+        function showExpensesModalByTotal(typeOrPerson, tab) {
+            const modal = document.getElementById('expensesModal');
+            const title = document.getElementById('modalTitle');
+            
+            let filteredExpenses = [];
+            let displayTitle = '';
+            
+            if (tab === 'monthly') {
+                // Get current month expenses
+                const month = state.expenses.filter(e => {
+                    const isInMonth = e.date.startsWith(state.selectedDate.slice(0, 7));
+                    const shouldExcludeTrip = state.excludeTrip && e.isTrip;
+                    return isInMonth && !shouldExcludeTrip;
+                });
+                
+                if (typeOrPerson === 'common') {
+                    // Show all common expenses for the month
+                    filteredExpenses = month.filter(e => e.type === 'common');
+                    displayTitle = 'Common Expenses - Monthly';
+                } else if (typeOrPerson === 'safu') {
+                    // Show all Safu's expenses (common + personal)
+                    filteredExpenses = month.filter(e => e.type !== 'credit' && e.person === 'safu');
+                    displayTitle = 'Safu - All Expenses';
+                } else if (typeOrPerson === 'labeeb') {
+                    // Show all Labeeb's expenses (common + personal)
+                    filteredExpenses = month.filter(e => e.type !== 'credit' && e.person === 'labeeb');
+                    displayTitle = 'Labeeb - All Expenses';
+                }
+            }
+            
+            title.textContent = displayTitle;
+            
+            // Store state for sorting
+            state.modalPerson = typeOrPerson;
+            state.modalTab = tab;
+            state.modalSort = 'date';
+            state.modalSortDirection = 'desc';
+            state.modalType = 'total';
+            state.typeFilter = 'all';
+            state.modalExpenses = filteredExpenses;
+            
+            // Show/hide filter section based on modal type
+            const typeFilterSection = document.getElementById('typeFilterSection');
+            if (typeOrPerson === 'safu' || typeOrPerson === 'labeeb') {
+                typeFilterSection.style.display = 'flex';
+            } else {
+                typeFilterSection.style.display = 'none';
+            }
+            
+            // Reset sort buttons
+            document.getElementById('sortByDateBtn').style.background = '#667eea';
+            document.getElementById('sortByDateBtn').style.color = 'white';
+            document.getElementById('sortByDateBtn').style.borderColor = '#667eea';
+            document.getElementById('sortByAmountBtn').style.background = 'white';
+            document.getElementById('sortByAmountBtn').style.color = '#666';
+            document.getElementById('sortByAmountBtn').style.borderColor = '#ddd';
+            
+            // Reset filter buttons
+            document.getElementById('filterAllBtn').style.background = '#667eea';
+            document.getElementById('filterAllBtn').style.color = 'white';
+            document.getElementById('filterAllBtn').style.borderColor = '#667eea';
+            document.getElementById('filterCommonBtn').style.background = 'white';
+            document.getElementById('filterCommonBtn').style.color = '#666';
+            document.getElementById('filterCommonBtn').style.borderColor = '#ddd';
+            document.getElementById('filterPersonalBtn').style.background = 'white';
+            document.getElementById('filterPersonalBtn').style.color = '#666';
+            document.getElementById('filterPersonalBtn').style.borderColor = '#ddd';
+            
+            renderExpensesModalByTotal();
+            modal.style.display = 'block';
+        }
+        
+        function renderExpensesModalByTotal() {
+            const content = document.getElementById('modalContent');
+            let filteredExpenses = [...state.modalExpenses];
+            
+            // Apply type filter (only for Safu/Labeeb totals)
+            if (state.typeFilter !== 'all') {
+                filteredExpenses = filteredExpenses.filter(e => e.type === state.typeFilter);
+            }
+            
+            // Apply sorting
+            if (state.modalSort === 'date') {
+                filteredExpenses.sort((a, b) => {
+                    const dateA = new Date(a.date);
+                    const dateB = new Date(b.date);
+                    return state.modalSortDirection === 'desc' ? dateB - dateA : dateA - dateB;
+                });
+            } else if (state.modalSort === 'amount') {
+                filteredExpenses.sort((a, b) => {
+                    return state.modalSortDirection === 'desc' ? b.amount - a.amount : a.amount - b.amount;
+                });
+            }
+            
+            // Generate HTML
+            if (filteredExpenses.length === 0) {
+                content.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No expenses for this period</p>';
+            } else {
+                let html = '';
+                let total = 0;
+                
+                filteredExpenses.forEach(exp => {
+                    total += exp.amount;
+                    const category = commonCategories.find(c => c.id === exp.category) || personalCategories.find(c => c.id === exp.category);
+                    const categoryIcon = category?.icon || '💰';
+                    const categoryLabel = category?.label || exp.category;
+                    const typeLabel = exp.type === 'common' ? `Common - ${exp.splitType === '50-50' || exp.splitType === 'half' ? '50-50' : 'Full'}` : 'Personal';
+                    const personLabel = exp.person === 'safu' ? 'Safu' : 'Labeeb';
+                    
+                    html += `
+                        <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="flex: 1;">
+                                <p style="margin: 0 0 4px 0; font-weight: 500;">
+                                    ${categoryIcon} ${categoryLabel}
+                                </p>
+                                <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">
+                                    ${exp.date} ${exp.description ? '• ' + exp.description : ''}
+                                </p>
+                                <p style="margin: 0; font-size: 11px; color: #999;">
+                                    ${personLabel} | ${typeLabel}
+                                </p>
+                            </div>
+                            <p style="margin: 0; font-weight: 600; color: #16a34a; min-width: 80px; text-align: right;">
+                                ₹${exp.amount.toFixed(2)}
+                            </p>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                    <div style="padding: 12px; background: #f5f5f5; border-top: 2px solid #e0e0e0; display: flex; justify-content: space-between; font-weight: 600;">
+                        <span>Total</span>
+                        <span style="color: #16a34a;">₹${total.toFixed(2)}</span>
+                    </div>
+                `;
+                
+                content.innerHTML = html;
+            }
+        }
+        
+        function filterExpensesByType(type) {
+            state.typeFilter = type;
+            
+            // Update button styles
+            document.getElementById('filterAllBtn').style.background = type === 'all' ? '#667eea' : 'white';
+            document.getElementById('filterAllBtn').style.color = type === 'all' ? 'white' : '#666';
+            document.getElementById('filterAllBtn').style.borderColor = type === 'all' ? '#667eea' : '#ddd';
+            
+            document.getElementById('filterCommonBtn').style.background = type === 'common' ? '#667eea' : 'white';
+            document.getElementById('filterCommonBtn').style.color = type === 'common' ? 'white' : '#666';
+            document.getElementById('filterCommonBtn').style.borderColor = type === 'common' ? '#667eea' : '#ddd';
+            
+            document.getElementById('filterPersonalBtn').style.background = type === 'personal' ? '#667eea' : 'white';
+            document.getElementById('filterPersonalBtn').style.color = type === 'personal' ? 'white' : '#666';
+            document.getElementById('filterPersonalBtn').style.borderColor = type === 'personal' ? '#667eea' : '#ddd';
+            
+            // Re-render with new filter
+            if (state.modalType === 'covered') {
+                renderExpensesModal();
+            } else if (state.modalType === 'total') {
+                renderExpensesModalByTotal();
+            }
+        }
+        
+        
+        function closeExpensesModal() {
+            const modal = document.getElementById('expensesModal');
+            modal.style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('expensesModal');
+            if (modal && e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+
         function toggleCreditMode() {
             const isCredit = document.getElementById('creditCheckbox').checked;
             const submitBtn = document.getElementById('submitBtn');
@@ -1485,15 +1858,51 @@
             const safuPersonalTotal = expensesForCalc.filter(e => e.type === 'personal' && e.person === 'safu').reduce((s, e) => s + e.amount, 0);
             const labeebPersonalTotal = expensesForCalc.filter(e => e.type === 'personal' && e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
             
-            // Calculate credits for each person
-            const safuCredits = (state.includeCredits ? today : []).filter(e => e.type === 'credit' && e.person === 'safu').reduce((s, e) => s + e.amount, 0);
-            const labeebCredits = (state.includeCredits ? today : []).filter(e => e.type === 'credit' && e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
+            // Calculate credits by type for each person
+            // Smart detection: if creditType is missing/undefined, infer from expense type/category
+            const safuCommonCredits = (state.includeCredits ? today : [])
+                .filter(e => {
+                    if (e.type !== 'credit' || e.person !== 'safu') return false;
+                    // If creditType is explicitly set, use it
+                    if (e.creditType === 'common') return true;
+                    if (e.creditType === 'personal') return false;
+                    // Default: treat as common if not specified (shared expense refund)
+                    return true;
+                })
+                .reduce((s, e) => s + e.amount, 0);
             
-            // Net totals = Expenses - Credits (negative means they have credit)
-            const safuTotal = (safuOwes + safuPersonalTotal) - safuCredits;
-            const labeebTotal = (labeebOwes + labeebPersonalTotal) - labeebCredits;
-            const commonTotal = expensesForCalc.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
-            const dailyTotal = expensesForCalc.reduce((s, e) => s + e.amount, 0);
+            const safuPersonalCredits = (state.includeCredits ? today : [])
+                .filter(e => {
+                    if (e.type !== 'credit' || e.person !== 'safu') return false;
+                    // Only count explicitly personal credits
+                    return e.creditType === 'personal';
+                })
+                .reduce((s, e) => s + e.amount, 0);
+            
+            const labeebCommonCredits = (state.includeCredits ? today : [])
+                .filter(e => {
+                    if (e.type !== 'credit' || e.person !== 'labeeb') return false;
+                    if (e.creditType === 'common') return true;
+                    if (e.creditType === 'personal') return false;
+                    return true;
+                })
+                .reduce((s, e) => s + e.amount, 0);
+            
+            const labeebPersonalCredits = (state.includeCredits ? today : [])
+                .filter(e => {
+                    if (e.type !== 'credit' || e.person !== 'labeeb') return false;
+                    return e.creditType === 'personal';
+                })
+                .reduce((s, e) => s + e.amount, 0);
+            
+            // Net totals = Personal Expenses - Personal Credits ONLY
+            const safuTotal = safuPersonalTotal - safuPersonalCredits;
+            const labeebTotal = labeebPersonalTotal - labeebPersonalCredits;
+            
+            // Common total = Common Expenses - Common Credits
+            const commonCreditsTotal = safuCommonCredits + labeebCommonCredits;
+            const commonTotal = expensesForCalc.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0) - commonCreditsTotal;
+            const dailyTotal = expensesForCalc.reduce((s, e) => s + e.amount, 0) - (safuCommonCredits + safuPersonalCredits + labeebCommonCredits + labeebPersonalCredits);
 
             document.getElementById('commonTotal').textContent = '₹' + commonTotal.toFixed(2);
             document.getElementById('dailyTotal').textContent = '₹' + dailyTotal.toFixed(2);
@@ -1506,6 +1915,21 @@
             
             labeebTotalEl.textContent = (labeebTotal < 0 ? '-' : '') + Math.abs(labeebTotal).toFixed(2);
             labeebTotalEl.style.color = labeebTotal < 0 ? '#2196F3' : '#ec4899';
+
+            // Display personal credits impact
+            let personalCreditsHtml = '';
+            if (state.includeCredits) {
+                if (safuPersonalCredits > 0 || labeebPersonalCredits > 0) {
+                    personalCreditsHtml = '<p style="font-size: 12px; font-weight: 600; margin: 0 0 6px 0;">Personal Credits:</p>';
+                    if (safuPersonalCredits > 0) {
+                        personalCreditsHtml += `<p style="margin: 4px 0; color: #16a34a;">Safu got ₹${safuPersonalCredits.toFixed(2)} (reduces personal to ₹${Math.max(0, safuPersonalTotal - safuPersonalCredits).toFixed(2)})</p>`;
+                    }
+                    if (labeebPersonalCredits > 0) {
+                        personalCreditsHtml += `<p style="margin: 4px 0; color: #ec4899;">Labeeb got ₹${labeebPersonalCredits.toFixed(2)} (reduces personal to ₹${Math.max(0, labeebPersonalTotal - labeebPersonalCredits).toFixed(2)})</p>`;
+                    }
+                }
+            }
+            document.getElementById('personalCreditsSection').innerHTML = personalCreditsHtml;
 
             let contributionHtml = '<div style="margin-bottom: 12px;"><p style="font-size: 11px; color: #666; margin: 0;">Paid:</p>';
             const safuPaid = allCommonExpenses.filter(e => e.person === 'safu').reduce((s, e) => s + e.amount, 0);
@@ -1526,6 +1950,18 @@
             contributionHtml += `<div class="contribution-item"><span class="contribution-name">Safu</span><span class="contribution-amount">₹${safuOwes.toFixed(2)}</span></div>`;
             contributionHtml += `<div class="contribution-item"><span class="contribution-name">Labeeb</span><span class="contribution-amount">₹${labeebOwes.toFixed(2)}</span></div>`;
             contributionHtml += '</div>';
+            
+            // Show credit impact on totals
+            if (state.includeCredits && (safuCommonCredits > 0 || labeebCommonCredits > 0)) {
+                contributionHtml += '<div style="margin-top: 8px;"><p style="font-size: 11px; color: #666; margin: 0;">Common Credits:</p>';
+                if (safuCommonCredits > 0) {
+                    contributionHtml += `<div class="contribution-item"><span class="contribution-name">Safu (got)</span><span class="contribution-amount">-₹${safuCommonCredits.toFixed(2)}</span></div>`;
+                }
+                if (labeebCommonCredits > 0) {
+                    contributionHtml += `<div class="contribution-item"><span class="contribution-name">Labeeb (got)</span><span class="contribution-amount">-₹${labeebCommonCredits.toFixed(2)}</span></div>`;
+                }
+                contributionHtml += '</div>';
+            }
             
             document.getElementById('contributionContent').innerHTML = contributionHtml;
 
@@ -1604,19 +2040,49 @@
             const monthLabeebPersonal = monthFiltered.filter(e => e.type === 'personal' && e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
             
             // Calculate credits for each person in the month (common and personal separately)
-            const monthSafuCommonCredits = (state.includeCredits ? month : []).filter(e => e.type === 'credit' && e.person === 'safu' && e.creditType === 'common').reduce((s, e) => s + e.amount, 0);
-            const monthSafuPersonalCredits = (state.includeCredits ? month : []).filter(e => e.type === 'credit' && e.person === 'safu' && e.creditType === 'personal').reduce((s, e) => s + e.amount, 0);
-            const monthSafuCredits = monthSafuCommonCredits + monthSafuPersonalCredits;
+            // Smart detection: if creditType is missing, default to common (shared expense refund)
+            const monthSafuCommonCredits = (state.includeCredits ? month : [])
+                .filter(e => {
+                    if (e.type !== 'credit' || e.person !== 'safu') return false;
+                    if (e.creditType === 'common') return true;
+                    if (e.creditType === 'personal') return false;
+                    return true; // Default to common
+                })
+                .reduce((s, e) => s + e.amount, 0);
             
-            const monthLabeebCommonCredits = (state.includeCredits ? month : []).filter(e => e.type === 'credit' && e.person === 'labeeb' && e.creditType === 'common').reduce((s, e) => s + e.amount, 0);
-            const monthLabeebPersonalCredits = (state.includeCredits ? month : []).filter(e => e.type === 'credit' && e.person === 'labeeb' && e.creditType === 'personal').reduce((s, e) => s + e.amount, 0);
-            const monthLabeebCredits = monthLabeebCommonCredits + monthLabeebPersonalCredits;
+            const monthSafuPersonalCredits = (state.includeCredits ? month : [])
+                .filter(e => {
+                    if (e.type !== 'credit' || e.person !== 'safu') return false;
+                    return e.creditType === 'personal';
+                })
+                .reduce((s, e) => s + e.amount, 0);
             
-            // Net amounts = Total - Credits (negative means they have credit)
-            const monthSafuTotal = (monthSafuOwes + monthSafuPersonal) - monthSafuCredits;
-            const monthLabeebTotal = (monthLabeebOwes + monthLabeebPersonal) - monthLabeebCredits;
+            const monthLabeebCommonCredits = (state.includeCredits ? month : [])
+                .filter(e => {
+                    if (e.type !== 'credit' || e.person !== 'labeeb') return false;
+                    if (e.creditType === 'common') return true;
+                    if (e.creditType === 'personal') return false;
+                    return true; // Default to common
+                })
+                .reduce((s, e) => s + e.amount, 0);
+            
+            const monthLabeebPersonalCredits = (state.includeCredits ? month : [])
+                .filter(e => {
+                    if (e.type !== 'credit' || e.person !== 'labeeb') return false;
+                    return e.creditType === 'personal';
+                })
+                .reduce((s, e) => s + e.amount, 0);
+            
+            // Net amounts = Only personal expenses - personal credits
+            // Common expenses reduced by common credits
+            const monthCommonCreditsTotal = monthSafuCommonCredits + monthLabeebCommonCredits;
+            const monthCommonExpenses = monthFiltered.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
+            const monthCommonNet = monthCommonExpenses - monthCommonCreditsTotal;
+            
+            const monthSafuTotal = monthSafuPersonal - monthSafuPersonalCredits;
+            const monthLabeebTotal = monthLabeebPersonal - monthLabeebPersonalCredits;
 
-            document.getElementById('monthCommon').textContent = '₹' + monthCommonTotal.toFixed(2);
+            document.getElementById('monthCommon').textContent = '₹' + monthCommonNet.toFixed(2);
             
             // Calculate who covered common expenses
             let monthSafuCovered = 0, monthLabeebCovered = 0;
@@ -1628,11 +2094,22 @@
                 }
             });
             
-            document.getElementById('safuCovered').textContent = monthSafuCovered.toFixed(2);
-            document.getElementById('labeebCovered').textContent = monthLabeebCovered.toFixed(2);
+            console.log('Monthly Covered - Safu:', monthSafuCovered, 'Labeeb:', monthLabeebCovered);
+            const safuCoveredEl = document.getElementById('safuCovered');
+            const labeebCoveredEl = document.getElementById('labeebCovered');
             
-            // Show who paid extra after equal split
-            const fairShare = monthCommonTotal / 2;
+            safuCoveredEl.textContent = monthSafuCovered.toFixed(2);
+            safuCoveredEl.style.cursor = 'pointer';
+            safuCoveredEl.style.textDecoration = 'underline';
+            safuCoveredEl.onclick = () => showExpensesModal('safu', 'monthly');
+            
+            labeebCoveredEl.textContent = monthLabeebCovered.toFixed(2);
+            labeebCoveredEl.style.cursor = 'pointer';
+            labeebCoveredEl.style.textDecoration = 'underline';
+            labeebCoveredEl.onclick = () => showExpensesModal('labeeb', 'monthly');
+            
+            // Show who paid extra after equal split - use NET amount (after credits)
+            const fairShare = monthCommonNet / 2;
             let extraHtml = '';
             if (monthSafuCovered > fairShare) {
                 const extra = monthSafuCovered - fairShare;
@@ -1640,7 +2117,7 @@
             } else if (monthLabeebCovered > fairShare) {
                 const extra = monthLabeebCovered - fairShare;
                 extraHtml = `<p style="color: #ec4899; font-weight: 600; margin: 0;">Labeeb paid ₹${extra.toFixed(2)} extra</p>`;
-            } else if (monthSafuCovered === monthLabeebCovered && monthCommonTotal > 0) {
+            } else if (monthSafuCovered === monthLabeebCovered && monthCommonNet > 0) {
                 extraHtml = `<p style="color: #666; margin: 0;">Split equally ✓</p>`;
             }
             document.getElementById('commonExtraSection').innerHTML = extraHtml;
@@ -1660,9 +2137,19 @@
             
             monthSafuEl.textContent = (monthSafuTotal < 0 ? '-' : '') + Math.abs(monthSafuTotal).toFixed(2);
             monthSafuEl.style.color = monthSafuTotal < 0 ? '#2196F3' : '#16a34a';
+            monthSafuEl.style.cursor = 'pointer';
+            monthSafuEl.style.textDecoration = 'underline';
+            monthSafuEl.onclick = () => showExpensesModalByTotal('safu', 'monthly');
             
             monthLabeebEl.textContent = (monthLabeebTotal < 0 ? '-' : '') + Math.abs(monthLabeebTotal).toFixed(2);
             monthLabeebEl.style.color = monthLabeebTotal < 0 ? '#2196F3' : '#ec4899';
+            monthLabeebEl.style.cursor = 'pointer';
+            monthLabeebEl.style.textDecoration = 'underline';
+            monthLabeebEl.onclick = () => showExpensesModalByTotal('labeeb', 'monthly');
+            
+            // Add click handler for common total
+            const monthCommonEl = document.getElementById('monthCommon');
+            monthCommonEl.onclick = () => showExpensesModalByTotal('common', 'monthly');
             
             document.getElementById('monthTotal').textContent = (monthCommonTotal + monthSafuTotal + monthLabeebTotal).toFixed(2);
 
