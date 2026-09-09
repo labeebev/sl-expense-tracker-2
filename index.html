@@ -691,6 +691,19 @@
                 <p>₹<span id="monthTotal">0.00</span></p>
             </div>
 
+            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Common Expenses Breakdown</h3>
+            <div class="monthly-summary">
+                <div class="summary-card safu">
+                    <p>Safu Covered</p>
+                    <p style="color: #16a34a;">₹<span id="safuCovered">0.00</span></p>
+                </div>
+                <div class="summary-card labeeb">
+                    <p>Labeeb Covered</p>
+                    <p style="color: #ec4899;">₹<span id="labeebCovered">0.00</span></p>
+                </div>
+            </div>
+            <div id="commonExtraSection" style="background: #f0f4ff; padding: 12px; border-radius: 8px; font-size: 12px; text-align: center; margin-bottom: 16px;"></div>
+
             <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Balance in Hand</h3>
             <div class="monthly-summary">
                 <div class="summary-card safu">
@@ -736,6 +749,19 @@
                 <p>Total Trip Expenses</p>
                 <p>₹<span id="tripTotal">0.00</span></p>
             </div>
+
+            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Common Expenses Breakdown</h3>
+            <div class="monthly-summary">
+                <div class="summary-card safu">
+                    <p>Safu Covered</p>
+                    <p style="color: #16a34a;">₹<span id="tripSafuCovered">0.00</span></p>
+                </div>
+                <div class="summary-card labeeb">
+                    <p>Labeeb Covered</p>
+                    <p style="color: #ec4899;">₹<span id="tripLabeebCovered">0.00</span></p>
+                </div>
+            </div>
+            <div id="tripCommonExtraSection" style="background: #f0f4ff; padding: 12px; border-radius: 8px; font-size: 12px; text-align: center; margin-bottom: 16px;"></div>
 
             <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Breakdown by Category</h3>
             <div id="tripCategoryBreakdown" style="background: #f5f5f5; padding: 12px; border-radius: 8px; font-size: 12px;"></div>
@@ -1215,6 +1241,7 @@
 
             // Calculate totals - Handle Personal vs Common expenses
             let safuTotal = 0, labeebTotal = 0, commonTotal = 0;
+            let tripSafuCovered = 0, tripLabeebCovered = 0;
             const categoryBreakdown = {};
 
             tripExpenses.forEach(exp => {
@@ -1235,6 +1262,14 @@
                 } else if (exp.type === 'common') {
                     // Common expense - add to commonTotal first
                     commonTotal += exp.amount;
+                    
+                    // Track who paid for common expenses
+                    if (exp.person === 'safu') {
+                        tripSafuCovered += exp.amount;
+                    } else if (exp.person === 'labeeb') {
+                        tripLabeebCovered += exp.amount;
+                    }
+                    
                     console.log('Common expense:', exp.amount, '- type:', exp.splitType);
                     
                     // Then calculate individual responsibility
@@ -1262,6 +1297,24 @@
             document.getElementById('tripSafu').textContent = safuTotal.toFixed(2);
             document.getElementById('tripLabeeb').textContent = labeebTotal.toFixed(2);
             document.getElementById('tripTotal').textContent = (safuTotal + labeebTotal).toFixed(2);
+
+            // Display who covered common expenses
+            document.getElementById('tripSafuCovered').textContent = tripSafuCovered.toFixed(2);
+            document.getElementById('tripLabeebCovered').textContent = tripLabeebCovered.toFixed(2);
+            
+            // Show who paid extra after equal split
+            const tripFairShare = commonTotal / 2;
+            let tripExtraHtml = '';
+            if (tripSafuCovered > tripFairShare) {
+                const extra = tripSafuCovered - tripFairShare;
+                tripExtraHtml = `<p style="color: #16a34a; font-weight: 600; margin: 0;">Safu paid ₹${extra.toFixed(2)} extra</p>`;
+            } else if (tripLabeebCovered > tripFairShare) {
+                const extra = tripLabeebCovered - tripFairShare;
+                tripExtraHtml = `<p style="color: #ec4899; font-weight: 600; margin: 0;">Labeeb paid ₹${extra.toFixed(2)} extra</p>`;
+            } else if (tripSafuCovered === tripLabeebCovered && commonTotal > 0) {
+                tripExtraHtml = `<p style="color: #666; margin: 0;">Split equally ✓</p>`;
+            }
+            document.getElementById('tripCommonExtraSection').innerHTML = tripExtraHtml;
 
             // Show category breakdown
             const breakdownHtml = Object.entries(categoryBreakdown)
@@ -1480,6 +1533,33 @@
             const monthLabeebTotal = (monthLabeebOwes + monthLabeebPersonal) - monthLabeebCredits;
 
             document.getElementById('monthCommon').textContent = '₹' + monthCommonTotal.toFixed(2);
+            
+            // Calculate who covered common expenses
+            let monthSafuCovered = 0, monthLabeebCovered = 0;
+            monthFiltered.filter(e => e.type === 'common').forEach(exp => {
+                if (exp.person === 'safu') {
+                    monthSafuCovered += exp.amount;
+                } else if (exp.person === 'labeeb') {
+                    monthLabeebCovered += exp.amount;
+                }
+            });
+            
+            document.getElementById('safuCovered').textContent = monthSafuCovered.toFixed(2);
+            document.getElementById('labeebCovered').textContent = monthLabeebCovered.toFixed(2);
+            
+            // Show who paid extra after equal split
+            const fairShare = monthCommonTotal / 2;
+            let extraHtml = '';
+            if (monthSafuCovered > fairShare) {
+                const extra = monthSafuCovered - fairShare;
+                extraHtml = `<p style="color: #16a34a; font-weight: 600; margin: 0;">Safu paid ₹${extra.toFixed(2)} extra</p>`;
+            } else if (monthLabeebCovered > fairShare) {
+                const extra = monthLabeebCovered - fairShare;
+                extraHtml = `<p style="color: #ec4899; font-weight: 600; margin: 0;">Labeeb paid ₹${extra.toFixed(2)} extra</p>`;
+            } else if (monthSafuCovered === monthLabeebCovered && monthCommonTotal > 0) {
+                extraHtml = `<p style="color: #666; margin: 0;">Split equally ✓</p>`;
+            }
+            document.getElementById('commonExtraSection').innerHTML = extraHtml;
             
             const monthSafuEl = document.getElementById('monthSafu');
             const monthLabeebEl = document.getElementById('monthLabeeb');
