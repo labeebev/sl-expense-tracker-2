@@ -1080,7 +1080,17 @@
                     if (!Array.isArray(data) || data.error) {
                         throw new Error(data.error || 'Invalid data format');
                     }
-                    state.expenses = data;
+
+                    // Deduplicate expenses by date, person, category, and amount
+                    const expenseMap = new Map();
+                    data.forEach(exp => {
+                        const key = `${exp.date}|${exp.person}|${exp.category}|${exp.amount}|${exp.type}`;
+                        if (!expenseMap.has(key)) {
+                            expenseMap.set(key, exp);
+                        }
+                    });
+                    state.expenses = Array.from(expenseMap.values());
+
                     document.getElementById('syncStatus').textContent = 'ready';
                     document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
                     updateFilterButtons();
@@ -1150,6 +1160,13 @@
         function changeMonth() {
             const selector = document.getElementById('monthSelector');
             state.selectedMonth = selector.value;
+
+            // Close any open modals when changing month
+            const modal = document.getElementById('expensesModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+
             updateUI();
         }
 
@@ -1167,6 +1184,9 @@
 
             if (tab === 'monthly') {
                 initMonthSelector();
+                // Ensure the month selector reflects current state
+                const selector = document.getElementById('monthSelector');
+                selector.value = state.selectedMonth;
                 updateUI();
             } else if (tab === 'trip') {
                 updateTripUI();
@@ -1765,30 +1785,34 @@
         function showExpensesModalByTotal(typeOrPerson, tab) {
             const modal = document.getElementById('expensesModal');
             const title = document.getElementById('modalTitle');
-            
+
             let filteredExpenses = [];
             let displayTitle = '';
-            
+
             if (tab === 'monthly') {
-                // Get current month expenses
+                // Get selected month expenses (use state.selectedMonth, not state.selectedDate)
                 const month = state.expenses.filter(e => {
-                    const isInMonth = e.date.startsWith(state.selectedDate.slice(0, 7));
+                    const isInMonth = e.date.startsWith(state.selectedMonth);
                     const shouldExcludeTrip = state.excludeTrip && e.isTrip;
                     return isInMonth && !shouldExcludeTrip;
                 });
-                
+
+                // Format month for display
+                const monthDate = new Date(`${state.selectedMonth}-01`);
+                const monthLabel = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
                 if (typeOrPerson === 'common') {
                     // Show all common expenses for the month
                     filteredExpenses = month.filter(e => e.type === 'common');
-                    displayTitle = 'Common Expenses - Monthly';
+                    displayTitle = `Common Expenses - Monthly (${monthLabel})`;
                 } else if (typeOrPerson === 'safu') {
                     // Show all Safu's expenses (common + personal)
                     filteredExpenses = month.filter(e => e.type !== 'credit' && e.person === 'safu');
-                    displayTitle = 'Safu - All Expenses';
+                    displayTitle = `Safu - All Expenses (${monthLabel})`;
                 } else if (typeOrPerson === 'labeeb') {
                     // Show all Labeeb's expenses (common + personal)
                     filteredExpenses = month.filter(e => e.type !== 'credit' && e.person === 'labeeb');
-                    displayTitle = 'Labeeb - All Expenses';
+                    displayTitle = `Labeeb - All Expenses (${monthLabel})`;
                 }
             }
             
@@ -1936,18 +1960,31 @@
             document.getElementById('typeFilterSection').style.display = 'none';
 
             // Update modal title
-            modalTitle.textContent = `${categoryLabel} Expenses`;
+            let titleText = `${categoryLabel} Expenses`;
+            if (tab === 'monthly') {
+                const monthDate = new Date(`${state.selectedMonth}-01`);
+                const monthLabel = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                titleText = `${categoryLabel} - ${monthLabel}`;
+            }
+            modalTitle.textContent = titleText;
 
             // Get expenses for this category in the selected month/date
             let expenses = [];
 
             if (tab === 'monthly') {
-                // Filter by selected month
+                // Filter by selected month - explicit double-check
                 expenses = state.expenses.filter(e => {
                     const isInMonth = e.date.startsWith(state.selectedMonth);
                     const isInCategory = e.category === categoryId;
                     const shouldExcludeTrip = state.excludeTrip && e.isTrip;
-                    return isInMonth && isInCategory && !shouldExcludeTrip;
+                    const include = isInMonth && isInCategory && !shouldExcludeTrip;
+
+                    // Debug log
+                    if (e.category === 'visa') {
+                        console.log(`[Modal] Category: ${categoryId}, Expense Date: ${e.date}, Selected Month: ${state.selectedMonth}, Include: ${include}`);
+                    }
+
+                    return include;
                 });
             } else if (tab === 'daily') {
                 // Filter by selected date
@@ -1957,6 +1994,9 @@
             }
 
             state.modalExpenses = expenses;
+
+            // Debug: log how many expenses were found
+            console.log(`[Modal Debug] Category: ${categoryId}, Found ${expenses.length} expenses for ${tab} view`);
 
             // Sort by date descending (most recent first)
             state.modalSort = 'date';
@@ -2218,7 +2258,14 @@
             const month = state.expenses.filter(e => {
                 const isInMonth = e.date.startsWith(state.selectedMonth);
                 const shouldExcludeTrip = state.excludeTrip && e.isTrip;
-                return isInMonth && !shouldExcludeTrip;
+                const include = isInMonth && !shouldExcludeTrip;
+
+                // Debug log for trip expenses
+                if (e.isTrip && e.category === 'visa') {
+                    console.log(`[Visa Filter] Date: ${e.date}, Month: ${state.selectedMonth}, Include: ${include}, ExcludeTrip: ${state.excludeTrip}`);
+                }
+
+                return include;
             });
             const monthFiltered = (state.includeCreditCardBill 
                 ? month.filter(e => e.type !== 'credit') 
@@ -2325,11 +2372,25 @@
             const fairShare = monthCommonNet / 2;
             let extraHtml = '';
             if (monthSafuCovered > fairShare) {
-                const extra = monthSafuCovered - fairShare;
-                extraHtml = `<p style="color: #16a34a; font-weight: 600; margin: 0;">Safu paid ₹${extra.toFixed(2)} extra</p>`;
+                const commonExtra = monthSafuCovered - fairShare;
+                const totalExtra = commonExtra + safuGaveToLabeeb; // Common extra + money given to Labeeb
+
+                let breakdownText = `₹${commonExtra.toFixed(2)}`;
+                if (safuGaveToLabeeb > 0) {
+                    breakdownText += ` + cash transfer ₹${safuGaveToLabeeb.toFixed(2)}`;
+                }
+
+                extraHtml = `<p style="color: #16a34a; font-weight: 600; margin: 0;">Safu paid ₹${totalExtra.toFixed(2)} extra (${breakdownText})</p>`;
             } else if (monthLabeebCovered > fairShare) {
-                const extra = monthLabeebCovered - fairShare;
-                extraHtml = `<p style="color: #ec4899; font-weight: 600; margin: 0;">Labeeb paid ₹${extra.toFixed(2)} extra</p>`;
+                const commonExtra = monthLabeebCovered - fairShare;
+                const totalExtra = commonExtra + labeebGaveToSafu; // Common extra + money given to Safu
+
+                let breakdownText = `₹${commonExtra.toFixed(2)}`;
+                if (labeebGaveToSafu > 0) {
+                    breakdownText += ` + cash transfer ₹${labeebGaveToSafu.toFixed(2)}`;
+                }
+
+                extraHtml = `<p style="color: #ec4899; font-weight: 600; margin: 0;">Labeeb paid ₹${totalExtra.toFixed(2)} extra (${breakdownText})</p>`;
             } else if (monthSafuCovered === monthLabeebCovered && monthCommonNet > 0) {
                 extraHtml = `<p style="color: #666; margin: 0;">Split equally ✓</p>`;
             }
@@ -2463,8 +2524,10 @@
                 categoryTotals[cat.id] = 0;
             });
 
+            // Only include expenses from the current selected month (explicit month check)
             monthFiltered.forEach(exp => {
-                if (categoryTotals.hasOwnProperty(exp.category)) {
+                // Double-check: ensure expense date matches selected month
+                if (exp.date.startsWith(state.selectedMonth) && categoryTotals.hasOwnProperty(exp.category)) {
                     categoryTotals[exp.category] += exp.amount;
                 }
             });
