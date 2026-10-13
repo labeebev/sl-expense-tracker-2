@@ -1688,13 +1688,35 @@
             document.getElementById('tripLabeebCommonCr').textContent = tripLabeebCommonCredits.toFixed(2);
             document.getElementById('tripLabeebPersonalCr').textContent = tripLabeebPersonalCredits.toFixed(2);
 
-            // Show category breakdown
-            const breakdownHtml = Object.entries(categoryBreakdown)
-                .map(([cat, amount]) => {
-                    const category = commonCategories.find(c => c.id === cat) || personalCategories.find(c => c.id === cat);
-                    return `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #ddd;"><span>${category?.icon || '💰'} ${category?.label || cat}</span><span>₹${amount.toFixed(2)}</span></div>`;
-                }).join('');
-            document.getElementById('tripCategoryBreakdown').innerHTML = breakdownHtml || '<p style="color: #999; font-size: 12px;">No expenses in trip</p>';
+            // Show category breakdown (using filteredTrip for proper filtering)
+            const tripCategoryTotals = {};
+            const tripUniqueCategories = [...new Set([...commonCategories, ...personalCategories])];
+
+            tripUniqueCategories.forEach(cat => {
+                tripCategoryTotals[cat.id] = 0;
+            });
+
+            // Use filtered trip expenses for category totals
+            filteredTrip.forEach(exp => {
+                if (tripCategoryTotals.hasOwnProperty(exp.category)) {
+                    tripCategoryTotals[exp.category] += exp.amount;
+                }
+            });
+
+            // Render category cards (exclude Money Given as it's shown in transfers section)
+            const tripCategoryHtml = tripUniqueCategories
+                .filter(cat => tripCategoryTotals[cat.id] > 0 && cat.id !== 'money_given')
+                .map(cat => {
+                    const total = tripCategoryTotals[cat.id];
+                    return `<div style="background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'" onclick="showCategoryExpensesModal('${cat.id}', '${cat.label}', 'trip')">
+                        <div style="font-size: 20px; margin-bottom: 4px;">${cat.icon}</div>
+                        <div style="font-size: 12px; font-weight: 500; color: #666; margin-bottom: 4px;">${cat.label}</div>
+                        <div style="font-size: 14px; font-weight: 600; color: #333;">₹${total.toFixed(2)}</div>
+                    </div>`;
+                })
+                .join('');
+
+            document.getElementById('tripCategoryBreakdown').innerHTML = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px;">${tripCategoryHtml || '<p style="grid-column: 1/-1; text-align: center; color: #999; font-size: 12px;">No expenses in trip</p>'}</div>`;
 
             // Show expense list (use filtered for display)
             const expenseHtml = filteredTrip.map(exp => {
