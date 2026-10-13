@@ -507,6 +507,50 @@
             font-weight: bold;
             color: #333;
         }
+
+        /* Spinner animation */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .sync-spinner {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+            margin-right: 4px;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #22c55e;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease-out;
+            z-index: 9999;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -1009,6 +1053,21 @@
             typeFilter: 'all'
         };
 
+        // Toast notification function
+        function showToast(message, duration = 2000) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), duration);
+        }
+
+        // Disable/enable all buttons
+        function setButtonsDisabled(disabled) {
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(btn => btn.disabled = disabled);
+        }
+
         document.getElementById('selectedDate').value = state.selectedDate;
         if (state.scriptUrl) {
             document.getElementById('scriptUrl').value = state.scriptUrl;
@@ -1049,11 +1108,11 @@
             }
             state.scriptUrl = url;
             localStorage.setItem('scriptUrl', url);
-            document.getElementById('syncStatus').textContent = 'syncing...';
+            setButtonsDisabled(true);
+            document.getElementById('syncStatus').innerHTML = '<span class="sync-spinner">⟳</span>syncing';
             loadExpenses();
             setTimeout(() => {
-                document.getElementById('syncStatus').textContent = 'ready';
-                document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
+                setButtonsDisabled(false);
                 toggleSettings();
             }, 1000);
         }
@@ -1064,7 +1123,10 @@
                 document.getElementById('warningBox').style.display = 'block';
                 return;
             }
-            document.getElementById('syncStatus').textContent = 'syncing';
+
+            // Disable buttons and show spinner
+            setButtonsDisabled(true);
+            document.getElementById('syncStatus').innerHTML = '<span class="sync-spinner">⟳</span>syncing';
 
             // Create abort controller with 10 second timeout
             const controller = new AbortController();
@@ -1091,14 +1153,20 @@
                     });
                     state.expenses = Array.from(expenseMap.values());
 
+                    // Re-enable buttons and show success
+                    setButtonsDisabled(false);
                     document.getElementById('syncStatus').textContent = 'ready';
                     document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
+                    showToast('✓ Synced successfully', 2000);
                     updateFilterButtons();
                     updateUI();
                 })
                 .catch(e => {
                     clearTimeout(timeoutId);
                     console.error('Sync error:', e);
+
+                    // Re-enable buttons
+                    setButtonsDisabled(false);
                     document.getElementById('syncStatus').textContent = 'error';
 
                     // Check if it's a timeout
@@ -1244,8 +1312,8 @@
                 creditType: isCredit ? state.creditType : 'personal'
             };
 
-            document.getElementById('submitBtn').disabled = true;
-            document.getElementById('syncStatus').textContent = 'adding';
+            setButtonsDisabled(true);
+            document.getElementById('syncStatus').innerHTML = '<span class="sync-spinner">⟳</span>adding';
 
             // Create abort controller with 10 second timeout
             const controller = new AbortController();
@@ -1279,7 +1347,8 @@
                 updateUI();
 
                 document.getElementById('syncStatus').textContent = 'ready';
-                document.getElementById('submitBtn').disabled = false;
+                setButtonsDisabled(false);
+                showToast('✓ Expense added', 1500);
 
                 // Sync with server after a short delay (300ms instead of 500ms)
                 // This ensures the UI is responsive while server stays in sync
@@ -1288,7 +1357,7 @@
             .catch(e => {
                 clearTimeout(timeoutId);
                 console.error('Add error:', e);
-                document.getElementById('submitBtn').disabled = false;
+                setButtonsDisabled(false);
                 document.getElementById('syncStatus').textContent = 'error';
 
                 if (e.name === 'AbortError') {
@@ -1573,15 +1642,37 @@
             tripLabeebCoveredEl.style.textDecoration = 'underline';
             tripLabeebCoveredEl.onclick = () => showExpensesModal('labeeb', 'trip');
             
-            // Show who paid extra after equal split - use NET amount (after credits if included)
+            // Show who paid extra after equal split - account for cash transfers
             const tripFairShare = tripCommonNet / 2;
             let tripExtraHtml = '';
             if (tripSafuCovered > tripFairShare) {
-                const extra = tripSafuCovered - tripFairShare;
-                tripExtraHtml = `<p style="color: #16a34a; font-weight: 600; margin: 0;">Safu paid ₹${extra.toFixed(2)} extra</p>`;
+                const commonExtra = tripSafuCovered - tripFairShare;
+                // Safu paid extra in common + money they gave - money they received
+                const totalExtra = commonExtra + safuGaveToLabeeb - labeebGaveToSafu;
+
+                let breakdownText = `₹${commonExtra.toFixed(2)}`;
+                if (safuGaveToLabeeb > 0) {
+                    breakdownText += ` + cash transfer ₹${safuGaveToLabeeb.toFixed(2)}`;
+                }
+                if (labeebGaveToSafu > 0) {
+                    breakdownText += ` - cash received ₹${labeebGaveToSafu.toFixed(2)}`;
+                }
+
+                tripExtraHtml = `<p style="color: #16a34a; font-weight: 600; margin: 0;">Safu paid ₹${totalExtra.toFixed(2)} extra (${breakdownText})</p>`;
             } else if (tripLabeebCovered > tripFairShare) {
-                const extra = tripLabeebCovered - tripFairShare;
-                tripExtraHtml = `<p style="color: #ec4899; font-weight: 600; margin: 0;">Labeeb paid ₹${extra.toFixed(2)} extra</p>`;
+                const commonExtra = tripLabeebCovered - tripFairShare;
+                // Labeeb paid extra in common + money they gave - money they received
+                const totalExtra = commonExtra + labeebGaveToSafu - safuGaveToLabeeb;
+
+                let breakdownText = `₹${commonExtra.toFixed(2)}`;
+                if (labeebGaveToSafu > 0) {
+                    breakdownText += ` + cash transfer ₹${labeebGaveToSafu.toFixed(2)}`;
+                }
+                if (safuGaveToLabeeb > 0) {
+                    breakdownText += ` - cash received ₹${safuGaveToLabeeb.toFixed(2)}`;
+                }
+
+                tripExtraHtml = `<p style="color: #ec4899; font-weight: 600; margin: 0;">Labeeb paid ₹${totalExtra.toFixed(2)} extra (${breakdownText})</p>`;
             } else if (tripSafuCovered === tripLabeebCovered && tripCommonNet > 0) {
                 tripExtraHtml = `<p style="color: #666; margin: 0;">Split equally ✓</p>`;
             }
@@ -2373,21 +2464,29 @@
             let extraHtml = '';
             if (monthSafuCovered > fairShare) {
                 const commonExtra = monthSafuCovered - fairShare;
-                const totalExtra = commonExtra + safuGaveToLabeeb; // Common extra + money given to Labeeb
+                // Safu paid extra in common, add money given to Labeeb, subtract money received from Labeeb
+                const totalExtra = commonExtra + safuGaveToLabeeb - labeebGaveToSafu;
 
                 let breakdownText = `₹${commonExtra.toFixed(2)}`;
                 if (safuGaveToLabeeb > 0) {
                     breakdownText += ` + cash transfer ₹${safuGaveToLabeeb.toFixed(2)}`;
                 }
+                if (labeebGaveToSafu > 0) {
+                    breakdownText += ` - cash received ₹${labeebGaveToSafu.toFixed(2)}`;
+                }
 
                 extraHtml = `<p style="color: #16a34a; font-weight: 600; margin: 0;">Safu paid ₹${totalExtra.toFixed(2)} extra (${breakdownText})</p>`;
             } else if (monthLabeebCovered > fairShare) {
                 const commonExtra = monthLabeebCovered - fairShare;
-                const totalExtra = commonExtra + labeebGaveToSafu; // Common extra + money given to Safu
+                // Labeeb paid extra in common, add money given to Safu, subtract money received from Safu
+                const totalExtra = commonExtra + labeebGaveToSafu - safuGaveToLabeeb;
 
                 let breakdownText = `₹${commonExtra.toFixed(2)}`;
                 if (labeebGaveToSafu > 0) {
                     breakdownText += ` + cash transfer ₹${labeebGaveToSafu.toFixed(2)}`;
+                }
+                if (safuGaveToLabeeb > 0) {
+                    breakdownText += ` - cash received ₹${safuGaveToLabeeb.toFixed(2)}`;
                 }
 
                 extraHtml = `<p style="color: #ec4899; font-weight: 600; margin: 0;">Labeeb paid ₹${totalExtra.toFixed(2)} extra (${breakdownText})</p>`;
