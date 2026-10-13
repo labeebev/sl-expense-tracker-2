@@ -901,6 +901,21 @@
             </div>
             <div id="tripCategoryBreakdown" style="background: #f5f5f5; padding: 12px; border-radius: 8px; font-size: 12px;"></div>
 
+            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Trip Currency Total</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                <div style="background: #e8f5e9; padding: 12px; border-radius: 8px;">
+                    <p style="font-size: 11px; color: #666; margin-bottom: 8px;">Original Currency Amounts</p>
+                    <p style="font-size: 12px; margin: 4px 0;"><strong>₹ Rs:</strong> <span id="tripTotalRs">0.00</span></p>
+                    <p style="font-size: 12px; margin: 4px 0;"><strong>₫ VND:</strong> <span id="tripTotalVnd">0.00</span></p>
+                    <p style="font-size: 12px; margin: 4px 0;"><strong>RM MYR:</strong> <span id="tripTotalMyr">0.00</span></p>
+                </div>
+                <div style="background: #e3f2fd; padding: 12px; border-radius: 8px;">
+                    <p style="font-size: 11px; color: #666; margin-bottom: 8px;">Total Actual Cost</p>
+                    <p style="font-size: 13px; font-weight: 600; color: #1565c0;">₹ <span id="tripTotalActualRs">0.00</span></p>
+                    <p style="font-size: 11px; color: #999; margin-top: 8px;">(After forex markup)</p>
+                </div>
+            </div>
+
             <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Trip Expense List</h3>
             <div id="tripExpensesList" style="max-height: 400px; overflow-y: auto;"></div>
         </div>
@@ -945,9 +960,24 @@
                 <textarea class="form-textarea" id="descriptionInput" placeholder="e.g., 2 shirts, 1 pair of shoes"></textarea>
             </div>
 
+            <div style="display: flex; gap: 12px;">
+                <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500;">Amount</label>
+                    <input type="number" step="0.01" min="0" id="amountInput" class="form-input" placeholder="0.00" required>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500;">Currency</label>
+                    <select id="currencyInput" class="form-input" style="width: 100px;">
+                        <option value="rs">₹ Rs</option>
+                        <option value="vnd">₫ VND</option>
+                        <option value="myr">RM MYR</option>
+                    </select>
+                </div>
+            </div>
+
             <div>
-                <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500;">Amount (₹)</label>
-                <input type="number" step="0.01" min="0" id="amountInput" class="form-input" placeholder="0.00" required>
+                <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500;">Actual Cost in Rs <span style="color: #999; font-weight: 400;">(if different currency)</span></label>
+                <input type="number" step="0.01" min="0" id="actualRsValueInput" class="form-input" placeholder="Leave blank if in Rs">
             </div>
 
             <div style="display: flex; align-items: center; gap: 8px;">
@@ -1272,9 +1302,15 @@
         function updateCategoryOptions() {
             const select = document.getElementById('categorySelect');
             const categories = state.currentType === 'common' ? commonCategories : personalCategories;
-            select.innerHTML = categories.map(cat => 
+            select.innerHTML = categories.map(cat =>
                 `<option value="${cat.id}">${cat.icon} ${cat.label}</option>`
             ).join('');
+        }
+
+        function getCurrencySymbol(currency) {
+            if (currency === 'vnd') return '₫';
+            if (currency === 'myr') return 'RM';
+            return '₹';
         }
 
         function toggleForm() {
@@ -1282,6 +1318,8 @@
             // Reset form when opening
             if (document.getElementById('formModal').classList.contains('active')) {
                 document.getElementById('creditCheckbox').checked = false;
+                document.getElementById('currencyInput').value = 'rs';
+                document.getElementById('actualRsValueInput').value = '';
                 document.getElementById('submitBtn').textContent = 'Add Expense';
                 document.getElementById('submitBtn').style.background = '#667eea';
                 document.querySelector('#personField label').textContent = 'Who Paid?';
@@ -1291,6 +1329,8 @@
         function addExpense(e) {
             e.preventDefault();
             const amount = parseFloat(document.getElementById('amountInput').value);
+            const currency = document.getElementById('currencyInput').value || 'rs';
+            const actualRsValue = parseFloat(document.getElementById('actualRsValueInput').value) || null;
             const isCredit = document.getElementById('creditCheckbox').checked;
             const isTrip = document.getElementById('tripCheckbox').checked;
 
@@ -1306,6 +1346,8 @@
                 category: isCredit ? 'credit' : document.getElementById('categorySelect').value,
                 description: document.getElementById('descriptionInput').value,
                 amount: amount,
+                currency: currency,
+                actualRsValue: actualRsValue,
                 splitType: (state.currentType === 'common' && !isCredit) ? document.getElementById('splitTypeSelect').value : 'full',
                 timestamp: new Date().toISOString(),
                 isTrip: isTrip,
@@ -1556,6 +1598,29 @@
             }).join('');
             document.getElementById('tripPersonFilterButtons').innerHTML = personHtml;
 
+            // Calculate currency breakdown
+            let tripTotalRs = 0, tripTotalVnd = 0, tripTotalMyr = 0, tripTotalActualRs = 0;
+            tripExpenses.forEach(exp => {
+                const currency = exp.currency || 'rs';
+                const actualRsVal = exp.actualRsValue || (currency === 'rs' ? exp.amount : 0);
+
+                if (currency === 'rs') {
+                    tripTotalRs += exp.amount;
+                } else if (currency === 'vnd') {
+                    tripTotalVnd += exp.amount;
+                } else if (currency === 'myr') {
+                    tripTotalMyr += exp.amount;
+                }
+
+                // Accumulate actual Rs value (use actualRsValue if provided, otherwise use Rs amount)
+                tripTotalActualRs += actualRsVal;
+            });
+
+            document.getElementById('tripTotalRs').textContent = tripTotalRs.toFixed(2);
+            document.getElementById('tripTotalVnd').textContent = tripTotalVnd.toFixed(0);
+            document.getElementById('tripTotalMyr').textContent = tripTotalMyr.toFixed(2);
+            document.getElementById('tripTotalActualRs').textContent = tripTotalActualRs.toFixed(2);
+
             // Calculate totals - Handle Personal vs Common expenses
             let safuTotal = 0, labeebTotal = 0, commonTotal = 0;
             let tripSafuCovered = 0, tripLabeebCovered = 0;
@@ -1714,13 +1779,15 @@
                 const categoryIcon = category?.icon || '💰';
                 const categoryLabel = category?.label || exp.category;
                 const typeLabel = exp.type === 'common' ? `${exp.splitType === '50-50' || exp.splitType === 'half' ? '50-50' : 'Full'}` : 'Personal';
+                const currencySymbol = getCurrencySymbol(exp.currency || 'rs');
+                const actualRsNote = exp.actualRsValue ? ` (₹${exp.actualRsValue.toFixed(2)} Rs)` : '';
                 return `<div class="expense-item" style="border-left-color: ${borderColor}">
                     <div class="expense-left">
                         <div class="expense-category">${categoryIcon} ${categoryLabel}</div>
                         ${exp.description ? `<div class="expense-description">${exp.description}</div>` : ''}
                         <p class="expense-meta">${exp.date} | ${person} | ${typeLabel}</p>
                     </div>
-                    <p class="expense-amount">₹${exp.amount.toFixed(2)}</p>
+                    <p class="expense-amount">${currencySymbol}${exp.amount.toFixed(2)}${actualRsNote}</p>
                 </div>`;
             }).join('');
             console.log('Filtered Trip Count:', filteredTrip.length);
@@ -1826,7 +1893,7 @@
         function renderExpensesModal() {
             const content = document.getElementById('modalContent');
             let filteredExpenses = [...state.modalExpenses];
-            
+
             // Apply sorting
             if (state.modalSort === 'date') {
                 filteredExpenses.sort((a, b) => {
@@ -1836,7 +1903,10 @@
                 });
             } else if (state.modalSort === 'amount') {
                 filteredExpenses.sort((a, b) => {
-                    return state.modalSortDirection === 'desc' ? b.amount - a.amount : a.amount - b.amount;
+                    // Sort by Rs value: use actualRsValue if available, otherwise use amount
+                    const aRsValue = a.actualRsValue || (a.currency === 'rs' ? a.amount : 0);
+                    const bRsValue = b.actualRsValue || (b.currency === 'rs' ? b.amount : 0);
+                    return state.modalSortDirection === 'desc' ? bRsValue - aRsValue : aRsValue - bRsValue;
                 });
             }
             
@@ -1846,14 +1916,19 @@
             } else {
                 let html = '';
                 let total = 0;
-                
+
                 filteredExpenses.forEach(exp => {
-                    total += exp.amount;
+                    // Total in Rs value: use actualRsValue if available, otherwise use amount
+                    const rsValue = exp.actualRsValue || (exp.currency === 'rs' ? exp.amount : 0);
+                    total += rsValue;
+
                     const category = commonCategories.find(c => c.id === exp.category);
                     const categoryIcon = category?.icon || '💰';
                     const categoryLabel = category?.label || exp.category;
                     const splitInfo = exp.splitType === '50-50' || exp.splitType === 'half' ? '(50-50 split)' : '(Full to payer)';
-                    
+                    const currencySymbol = getCurrencySymbol(exp.currency || 'rs');
+                    const actualRsNote = exp.actualRsValue ? ` (₹${exp.actualRsValue.toFixed(2)} Rs)` : '';
+
                     html += `
                         <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: flex-start;">
                             <div style="flex: 1;">
@@ -1867,20 +1942,20 @@
                                     ${splitInfo}
                                 </p>
                             </div>
-                            <p style="margin: 0; font-weight: 600; color: #16a34a; min-width: 80px; text-align: right;">
-                                ₹${exp.amount.toFixed(2)}
+                            <p style="margin: 0; font-weight: 600; color: #16a34a; min-width: 100px; text-align: right;">
+                                ${currencySymbol}${exp.amount.toFixed(2)}${actualRsNote}
                             </p>
                         </div>
                     `;
                 });
-                
+
                 html += `
                     <div style="padding: 12px; background: #f5f5f5; border-top: 2px solid #e0e0e0; display: flex; justify-content: space-between; font-weight: 600;">
-                        <span>Total</span>
+                        <span>Total (Rs)</span>
                         <span style="color: #16a34a;">₹${total.toFixed(2)}</span>
                     </div>
                 `;
-                
+
                 content.innerHTML = html;
             }
         }
@@ -1964,12 +2039,12 @@
         function renderExpensesModalByTotal() {
             const content = document.getElementById('modalContent');
             let filteredExpenses = [...state.modalExpenses];
-            
+
             // Apply type filter (only for Safu/Labeeb totals)
             if (state.typeFilter !== 'all') {
                 filteredExpenses = filteredExpenses.filter(e => e.type === state.typeFilter);
             }
-            
+
             // Apply sorting
             if (state.modalSort === 'date') {
                 filteredExpenses.sort((a, b) => {
@@ -1979,7 +2054,10 @@
                 });
             } else if (state.modalSort === 'amount') {
                 filteredExpenses.sort((a, b) => {
-                    return state.modalSortDirection === 'desc' ? b.amount - a.amount : a.amount - b.amount;
+                    // Sort by Rs value: use actualRsValue if available, otherwise use amount
+                    const aRsValue = a.actualRsValue || (a.currency === 'rs' ? a.amount : 0);
+                    const bRsValue = b.actualRsValue || (b.currency === 'rs' ? b.amount : 0);
+                    return state.modalSortDirection === 'desc' ? bRsValue - aRsValue : aRsValue - bRsValue;
                 });
             }
             
@@ -1989,15 +2067,20 @@
             } else {
                 let html = '';
                 let total = 0;
-                
+
                 filteredExpenses.forEach(exp => {
-                    total += exp.amount;
+                    // Total in Rs value: use actualRsValue if available, otherwise use amount
+                    const rsValue = exp.actualRsValue || (exp.currency === 'rs' ? exp.amount : 0);
+                    total += rsValue;
+
                     const category = commonCategories.find(c => c.id === exp.category) || personalCategories.find(c => c.id === exp.category);
                     const categoryIcon = category?.icon || '💰';
                     const categoryLabel = category?.label || exp.category;
                     const typeLabel = exp.type === 'common' ? `Common - ${exp.splitType === '50-50' || exp.splitType === 'half' ? '50-50' : 'Full'}` : 'Personal';
                     const personLabel = exp.person === 'safu' ? 'Safu' : 'Labeeb';
-                    
+                    const currencySymbol = getCurrencySymbol(exp.currency || 'rs');
+                    const actualRsNote = exp.actualRsValue ? ` (₹${exp.actualRsValue.toFixed(2)} Rs)` : '';
+
                     html += `
                         <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: flex-start;">
                             <div style="flex: 1;">
@@ -2011,20 +2094,20 @@
                                     ${personLabel} | ${typeLabel}
                                 </p>
                             </div>
-                            <p style="margin: 0; font-weight: 600; color: #16a34a; min-width: 80px; text-align: right;">
-                                ₹${exp.amount.toFixed(2)}
+                            <p style="margin: 0; font-weight: 600; color: #16a34a; min-width: 100px; text-align: right;">
+                                ${currencySymbol}${exp.amount.toFixed(2)}${actualRsNote}
                             </p>
                         </div>
                     `;
                 });
-                
+
                 html += `
                     <div style="padding: 12px; background: #f5f5f5; border-top: 2px solid #e0e0e0; display: flex; justify-content: space-between; font-weight: 600;">
-                        <span>Total</span>
+                        <span>Total (Rs)</span>
                         <span style="color: #16a34a;">₹${total.toFixed(2)}</span>
                     </div>
                 `;
-                
+
                 content.innerHTML = html;
             }
         }
@@ -2125,6 +2208,9 @@
                     metaText = `gave to ${receiver}`;
                 }
 
+                const currencySymbol = getCurrencySymbol(exp.currency || 'rs');
+                const actualRsNote = exp.actualRsValue ? ` (₹${exp.actualRsValue.toFixed(2)} Rs)` : '';
+
                 return `<div class="expense-item" style="border-left-color: ${exp.type === 'credit' ? '#ff9800' : (exp.type === 'personal' ? '#667eea' : '#16a34a')}">
                     <div class="expense-left">
                         <div class="expense-category">
@@ -2133,7 +2219,7 @@
                         ${exp.description ? `<div class="expense-description">${exp.description}</div>` : ''}
                         <p class="expense-meta">${metaText}</p>
                     </div>
-                    <p class="expense-amount">₹${exp.amount.toFixed(2)}</p>
+                    <p class="expense-amount">${currencySymbol}${exp.amount.toFixed(2)}${actualRsNote}</p>
                 </div>`;
             }).join('');
 
@@ -2343,7 +2429,9 @@
                     const categoryObj = categories.find(c => c.id === exp.category);
                     const categoryIcon = categoryObj?.icon || '💰';
                     const categoryLabel = categoryObj?.label || exp.category;
-                    
+                    const currencySymbol = getCurrencySymbol(exp.currency || 'rs');
+                    const actualRsNote = exp.actualRsValue ? ` (₹${exp.actualRsValue.toFixed(2)} Rs)` : '';
+
                     return `<div class="expense-item" style="border-left-color: ${borderColor}">
                         <div class="expense-left">
                             <div class="expense-category">
@@ -2352,7 +2440,7 @@
                             ${exp.description ? `<div class="expense-description">${exp.description}</div>` : ''}
                             <p class="expense-meta">${person} ${typeLabel}${splitLabel}</p>
                         </div>
-                        <p class="expense-amount">₹${exp.amount.toFixed(2)}</p>
+                        <p class="expense-amount">${currencySymbol}${exp.amount.toFixed(2)}${actualRsNote}</p>
                     </div>`;
                 }).join('');
             }
@@ -2639,7 +2727,9 @@
             monthFiltered.forEach(exp => {
                 // Double-check: ensure expense date matches selected month
                 if (exp.date.startsWith(state.selectedMonth) && categoryTotals.hasOwnProperty(exp.category)) {
-                    categoryTotals[exp.category] += exp.amount;
+                    // Use Rs value for totals: actualRsValue if available, otherwise amount for Rs expenses
+                    const rsValue = exp.actualRsValue || (exp.currency === 'rs' ? exp.amount : 0);
+                    categoryTotals[exp.category] += rsValue;
                 }
             });
 
@@ -2651,7 +2741,7 @@
                     return `<div style="background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'" onclick="showCategoryExpensesModal('${cat.id}', '${cat.label}', 'monthly')">
                         <div style="font-size: 20px; margin-bottom: 4px;">${cat.icon}</div>
                         <div style="font-size: 12px; font-weight: 500; color: #666; margin-bottom: 4px;">${cat.label}</div>
-                        <div style="font-size: 14px; font-weight: 600; color: #333;">₹${total.toFixed(2)}</div>
+                        <div style="font-size: 14px; font-weight: 600; color: #333;">₹${total.toFixed(2)} Rs</div>
                     </div>`;
                 })
                 .join('');
