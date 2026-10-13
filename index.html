@@ -810,6 +810,11 @@
                     <p style="color: #880e4f; font-size: 16px;">₹<span id="labeebBalance">0.00</span></p>
                 </div>
             </div>
+
+            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Scapia Card Debts</h3>
+            <div id="scapiaDebtsSection" style="background: #fff3e0; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #ffe0b2;">
+                <!-- Will be filled by JavaScript -->
+            </div>
         </div>
 
         <!-- Modal for viewing detailed common expenses -->
@@ -916,6 +921,11 @@
                 </div>
             </div>
 
+            <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Scapia Card Debts</h3>
+            <div id="tripScapiaDebtsSection" style="background: #fff3e0; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #ffe0b2;">
+                <!-- Will be filled by JavaScript -->
+            </div>
+
             <h3 style="margin: 16px 0 12px 0; font-size: 14px; font-weight: 600;">Trip Expense List</h3>
             <div id="tripExpensesList" style="max-height: 400px; overflow-y: auto;"></div>
         </div>
@@ -931,6 +941,14 @@
                 <div class="type-buttons">
                     <button type="button" class="type-btn active" onclick="setType('common')">Common</button>
                     <button type="button" class="type-btn" onclick="setType('personal')">Personal</button>
+                </div>
+            </div>
+
+            <div>
+                <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500;">Payment Mode</label>
+                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                    <button type="button" id="paymentModePersonal" class="mode-btn active" onclick="setPaymentMode('personal')" style="flex: 1; padding: 8px 12px; border: 2px solid #667eea; background: #667eea; color: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s;">Personal</button>
+                    <button type="button" id="paymentModeScapia" class="mode-btn" onclick="setPaymentMode('scapia')" style="flex: 1; padding: 8px 12px; border: 2px solid #ddd; background: white; color: #666; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s;">Scapia Card</button>
                 </div>
             </div>
 
@@ -1061,9 +1079,10 @@
             })(),
             currentType: 'common',
             creditType: 'common',
+            paymentMode: 'personal',
             syncStatus: 'ready',
             activeCategoryFilters: [],
-            activePersonFilters: ['safu', 'labeeb'],
+            activePersonFilters: ['safu', 'labeeb', 'scapia_abin', 'scapia_siril'],
             activeTypeFilters: ['common', 'personal', 'credit'],
             safuSalary: parseFloat(localStorage.getItem('safuSalary')) || 0,
             labeebSalary: parseFloat(localStorage.getItem('labeebSalary')) || 0,
@@ -1073,7 +1092,7 @@
             includeCredits: localStorage.getItem('includeCredits') !== 'false',
             excludeTrip: localStorage.getItem('excludeTrip') !== 'false',
             activeTripCategoryFilters: [],
-            activeTripPersonFilters: ['safu', 'labeeb'],
+            activeTripPersonFilters: ['safu', 'labeeb', 'scapia_abin', 'scapia_siril'],
             modalSort: 'date',
             modalSortDirection: 'desc',
             modalExpenses: [],
@@ -1299,6 +1318,46 @@
             updateCategoryOptions();
         }
 
+        function setPaymentMode(mode) {
+            state.paymentMode = mode;
+
+            // Update button styles
+            const personalBtn = document.getElementById('paymentModePersonal');
+            const scapiaBtn = document.getElementById('paymentModeScapia');
+
+            if (mode === 'personal') {
+                personalBtn.style.background = '#667eea';
+                personalBtn.style.borderColor = '#667eea';
+                personalBtn.style.color = 'white';
+                scapiaBtn.style.background = 'white';
+                scapiaBtn.style.borderColor = '#ddd';
+                scapiaBtn.style.color = '#666';
+            } else {
+                personalBtn.style.background = 'white';
+                personalBtn.style.borderColor = '#ddd';
+                personalBtn.style.color = '#666';
+                scapiaBtn.style.background = '#667eea';
+                scapiaBtn.style.borderColor = '#667eea';
+                scapiaBtn.style.color = 'white';
+            }
+
+            // Update person options
+            const personSelect = document.getElementById('personSelect');
+            if (mode === 'personal') {
+                personSelect.innerHTML = `
+                    <option value="safu">Safu</option>
+                    <option value="labeeb">Labeeb</option>
+                `;
+                personSelect.value = 'safu';
+            } else {
+                personSelect.innerHTML = `
+                    <option value="scapia_abin">Scapia Abin</option>
+                    <option value="scapia_siril">Scapia Siril</option>
+                `;
+                personSelect.value = 'scapia_abin';
+            }
+        }
+
         function updateCategoryOptions() {
             const select = document.getElementById('categorySelect');
             const categories = state.currentType === 'common' ? commonCategories : personalCategories;
@@ -1313,6 +1372,16 @@
             return '₹';
         }
 
+        function getPersonDisplay(personId) {
+            const personMap = {
+                'safu': { name: 'Safu', color: '#22c55e' },
+                'labeeb': { name: 'Labeeb', color: '#ec4899' },
+                'scapia_abin': { name: 'Scapia Abin', color: '#ff6f00' },
+                'scapia_siril': { name: 'Scapia Siril', color: '#ff6f00' }
+            };
+            return personMap[personId] || { name: personId, color: '#999' };
+        }
+
         function toggleForm() {
             document.getElementById('formModal').classList.toggle('active');
             // Reset form when opening
@@ -1323,6 +1392,8 @@
                 document.getElementById('submitBtn').textContent = 'Add Expense';
                 document.getElementById('submitBtn').style.background = '#667eea';
                 document.querySelector('#personField label').textContent = 'Who Paid?';
+                // Reset payment mode to personal
+                setPaymentMode('personal');
             }
         }
 
@@ -1428,7 +1499,9 @@
 
             const persons = [
                 { id: 'safu', label: 'Safu', icon: '👤' },
-                { id: 'labeeb', label: 'Labeeb', icon: '👤' }
+                { id: 'labeeb', label: 'Labeeb', icon: '👤' },
+                { id: 'scapia_abin', label: 'Scapia Abin', icon: '💳' },
+                { id: 'scapia_siril', label: 'Scapia Siril', icon: '💳' }
             ];
 
             const personHtml = persons.map(person => {
@@ -1559,8 +1632,14 @@
             console.log('All trip expenses:', tripExpenses);
 
             // Calculate cash transfers for trip
-            const safuGaveToLabeeb = tripExpenses.filter(e => e.category === 'money_given' && e.person === 'safu').reduce((s, e) => s + e.amount, 0);
-            const labeebGaveToSafu = tripExpenses.filter(e => e.category === 'money_given' && e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
+            const safuGaveToLabeeb = tripExpenses.filter(e => e.category === 'money_given' && e.person === 'safu').reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0);
+            const labeebGaveToSafu = tripExpenses.filter(e => e.category === 'money_given' && e.person === 'labeeb').reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0);
 
             // Get all trip categories and initialize filters
             const tripCategories = new Set();
@@ -1591,7 +1670,9 @@
             // Update person filter buttons
             const personHtml = [
                 { id: 'safu', label: 'Safu', icon: '👤' },
-                { id: 'labeeb', label: 'Labeeb', icon: '👤' }
+                { id: 'labeeb', label: 'Labeeb', icon: '👤' },
+                { id: 'scapia_abin', label: 'Scapia Abin', icon: '💳' },
+                { id: 'scapia_siril', label: 'Scapia Siril', icon: '💳' }
             ].map(person => {
                 const isActive = state.activeTripPersonFilters.includes(person.id);
                 return `<button type="button" class="filter-btn ${isActive ? 'active' : ''}" onclick="toggleTripPersonFilter('${person.id}')">${person.icon} ${person.label}</button>`;
@@ -1629,62 +1710,64 @@
             const categoryBreakdown = {};
 
             tripExpenses.forEach(exp => {
+                const rsValue = exp.actualRsValue || (exp.currency === 'rs' ? exp.amount : 0);
+
                 if (!categoryBreakdown[exp.category]) {
                     categoryBreakdown[exp.category] = 0;
                 }
-                categoryBreakdown[exp.category] += exp.amount;
-                
+                categoryBreakdown[exp.category] += rsValue;
+
                 if (exp.type === 'credit') {
                     // Track credits by type and person
                     if (exp.creditType === 'common') {
                         if (exp.person === 'safu') {
-                            tripSafuCommonCredits += exp.amount;
+                            tripSafuCommonCredits += rsValue;
                         } else if (exp.person === 'labeeb') {
-                            tripLabeebCommonCredits += exp.amount;
+                            tripLabeebCommonCredits += rsValue;
                         }
                     } else if (exp.creditType === 'personal') {
                         if (exp.person === 'safu') {
-                            tripSafuPersonalCredits += exp.amount;
+                            tripSafuPersonalCredits += rsValue;
                         } else if (exp.person === 'labeeb') {
-                            tripLabeebPersonalCredits += exp.amount;
+                            tripLabeebPersonalCredits += rsValue;
                         }
                     }
                 } else if (exp.type === 'personal') {
                     // Personal expense - only that person's total
                     if (exp.person === 'safu') {
-                        safuTotal += exp.amount;
-                        console.log('Safu personal:', exp.amount, '(', exp.category, ')', 'total:', safuTotal);
+                        safuTotal += rsValue;
+                        console.log('Safu personal:', rsValue, '(', exp.category, ')', 'total:', safuTotal);
                     } else if (exp.person === 'labeeb') {
-                        labeebTotal += exp.amount;
-                        console.log('Labeeb personal:', exp.amount, '(', exp.category, ')', 'total:', labeebTotal);
+                        labeebTotal += rsValue;
+                        console.log('Labeeb personal:', rsValue, '(', exp.category, ')', 'total:', labeebTotal);
                     }
                 } else if (exp.type === 'common') {
                     // Common expense - add to commonTotal first
-                    commonTotal += exp.amount;
-                    
+                    commonTotal += rsValue;
+
                     // Track who paid for common expenses
                     if (exp.person === 'safu') {
-                        tripSafuCovered += exp.amount;
+                        tripSafuCovered += rsValue;
                     } else if (exp.person === 'labeeb') {
-                        tripLabeebCovered += exp.amount;
+                        tripLabeebCovered += rsValue;
                     }
-                    
-                    console.log('Common expense:', exp.amount, '- type:', exp.splitType);
-                    
+
+                    console.log('Common expense:', rsValue, '- type:', exp.splitType);
+
                     // Then calculate individual responsibility
                     if (exp.splitType === '50-50' || exp.splitType === 'half') {
                         // Split 50-50 between both
-                        safuTotal += exp.amount / 2;
-                        labeebTotal += exp.amount / 2;
-                        console.log('Common 50-50:', exp.amount, 'Safu gets:', exp.amount/2, 'Labeeb gets:', exp.amount/2);
+                        safuTotal += rsValue / 2;
+                        labeebTotal += rsValue / 2;
+                        console.log('Common 50-50:', rsValue, 'Safu gets:', rsValue/2, 'Labeeb gets:', rsValue/2);
                     } else {
                         // Full to payer (full to payer)
                         if (exp.person === 'safu') {
-                            safuTotal += exp.amount;
-                            console.log('Common full to Safu:', exp.amount, 'total:', safuTotal);
+                            safuTotal += rsValue;
+                            console.log('Common full to Safu:', rsValue, 'total:', safuTotal);
                         } else if (exp.person === 'labeeb') {
-                            labeebTotal += exp.amount;
-                            console.log('Common full to Labeeb:', exp.amount, 'total:', labeebTotal);
+                            labeebTotal += rsValue;
+                            console.log('Common full to Labeeb:', rsValue, 'total:', labeebTotal);
                         }
                     }
                 }
@@ -1771,10 +1854,55 @@
                 }).join('');
             document.getElementById('tripCategoryBreakdown').innerHTML = breakdownHtml || '<p style="color: #999; font-size: 12px;">No expenses in trip</p>';
 
+            // Calculate Scapia card debts with currency breakdown for trip
+            const getTripScapiaDebtBreakdown = (person) => {
+                const expenses = tripExpenses.filter(e => e.person === person);
+                const breakdown = { rs: 0, vnd: 0, myr: 0, total: 0 };
+                expenses.forEach(e => {
+                    const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                    breakdown.total += rsValue;
+                    if (e.currency === 'vnd') {
+                        breakdown.vnd += e.amount;
+                    } else if (e.currency === 'myr') {
+                        breakdown.myr += e.amount;
+                    } else {
+                        breakdown.rs += e.amount;
+                    }
+                });
+                return breakdown;
+            };
+
+            const tripScapiaAbinBreakdown = getTripScapiaDebtBreakdown('scapia_abin');
+            const tripScapiaSirilBreakdown = getTripScapiaDebtBreakdown('scapia_siril');
+
+            let tripScapiaHtml = '';
+            if (tripScapiaAbinBreakdown.total > 0 || tripScapiaSirilBreakdown.total > 0) {
+                if (tripScapiaAbinBreakdown.total > 0) {
+                    const breakdown = [];
+                    if (tripScapiaAbinBreakdown.vnd > 0) breakdown.push(`₫${tripScapiaAbinBreakdown.vnd.toFixed(0)} VND`);
+                    if (tripScapiaAbinBreakdown.myr > 0) breakdown.push(`RM${tripScapiaAbinBreakdown.myr.toFixed(2)}`);
+                    if (tripScapiaAbinBreakdown.rs > 0) breakdown.push(`₹${tripScapiaAbinBreakdown.rs.toFixed(2)} Rs`);
+                    const breakdownStr = breakdown.length > 0 ? ` (${breakdown.join(', ')})` : '';
+                    tripScapiaHtml += `<p style="margin: 6px 0; color: #ff6f00; cursor: pointer; text-decoration: underline;" onclick="showScapiaExpensesModal('scapia_abin', 'trip')"><strong>💳 Owe Scapia Abin: ₹${tripScapiaAbinBreakdown.total.toFixed(2)}${breakdownStr}</strong></p>`;
+                }
+                if (tripScapiaSirilBreakdown.total > 0) {
+                    const breakdown = [];
+                    if (tripScapiaSirilBreakdown.vnd > 0) breakdown.push(`₫${tripScapiaSirilBreakdown.vnd.toFixed(0)} VND`);
+                    if (tripScapiaSirilBreakdown.myr > 0) breakdown.push(`RM${tripScapiaSirilBreakdown.myr.toFixed(2)}`);
+                    if (tripScapiaSirilBreakdown.rs > 0) breakdown.push(`₹${tripScapiaSirilBreakdown.rs.toFixed(2)} Rs`);
+                    const breakdownStr = breakdown.length > 0 ? ` (${breakdown.join(', ')})` : '';
+                    tripScapiaHtml += `<p style="margin: 6px 0; color: #ff6f00; cursor: pointer; text-decoration: underline;" onclick="showScapiaExpensesModal('scapia_siril', 'trip')"><strong>💳 Owe Scapia Siril: ₹${tripScapiaSirilBreakdown.total.toFixed(2)}${breakdownStr}</strong></p>`;
+                }
+            } else {
+                tripScapiaHtml = '<p style="margin: 0; color: #999; font-size: 12px;">No Scapia card expenses in trip</p>';
+            }
+            document.getElementById('tripScapiaDebtsSection').innerHTML = tripScapiaHtml;
+
             // Show expense list (use filtered for display)
             const expenseHtml = filteredTrip.map(exp => {
-                const person = exp.person === 'safu' ? 'Safu' : 'Labeeb';
-                const borderColor = exp.person === 'safu' ? '#22c55e' : '#ec4899';
+                const personDisplay = getPersonDisplay(exp.person);
+                const person = personDisplay.name;
+                const borderColor = personDisplay.color;
                 const category = commonCategories.find(c => c.id === exp.category) || personalCategories.find(c => c.id === exp.category) || creditCategories.find(c => c.id === exp.category);
                 const categoryIcon = category?.icon || '💰';
                 const categoryLabel = category?.label || exp.category;
@@ -2229,6 +2357,87 @@
             modal.style.display = 'block';
         }
 
+        function showScapiaExpensesModal(personId, tab) {
+            const modal = document.getElementById('expensesModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalContent = document.getElementById('modalContent');
+
+            // Hide type filter for Scapia view
+            document.getElementById('typeFilterSection').style.display = 'none';
+
+            // Update modal title
+            const personDisplay = getPersonDisplay(personId);
+            let titleText = `${personDisplay.name} Expenses`;
+            if (tab === 'monthly') {
+                const monthDate = new Date(`${state.selectedMonth}-01`);
+                const monthLabel = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                titleText = `${personDisplay.name} - ${monthLabel}`;
+            }
+            modalTitle.textContent = titleText;
+
+            // Get expenses for this Scapia person
+            let expenses = [];
+
+            if (tab === 'monthly') {
+                // Filter by selected month and person
+                expenses = state.expenses.filter(e => {
+                    const isInMonth = e.date.startsWith(state.selectedMonth);
+                    const isScapiaPerson = e.person === personId;
+                    const shouldExcludeTrip = state.excludeTrip && e.isTrip;
+                    const include = isInMonth && isScapiaPerson && !shouldExcludeTrip;
+                    return include;
+                });
+            } else if (tab === 'trip') {
+                // Filter by trip expenses and person (excludeTrip is false for trip tab)
+                expenses = state.expenses.filter(e => {
+                    return e.isTrip && e.person === personId;
+                });
+            } else if (tab === 'daily') {
+                // Filter by selected date and person
+                expenses = state.expenses.filter(e => {
+                    return e.date === state.selectedDate && e.person === personId;
+                });
+            }
+
+            state.modalExpenses = expenses;
+
+            // Sort by date descending (most recent first)
+            state.modalSort = 'date';
+            state.modalSortDirection = 'desc';
+            expenses.sort((a, b) => {
+                const dateA = new Date(a.date);
+                const dateB = new Date(b.date);
+                return dateB - dateA;
+            });
+
+            // Render expenses
+            const html = expenses.map(exp => {
+                const category = commonCategories.find(c => c.id === exp.category) || personalCategories.find(c => c.id === exp.category);
+                const categoryIcon = category?.icon || '💰';
+                const categoryLabel = category?.label || exp.category;
+                const typeLabel = exp.type === 'common' ? `${exp.splitType === '50-50' || exp.splitType === 'half' ? '50-50' : 'Full'}` : 'Personal';
+
+                const currencySymbol = getCurrencySymbol(exp.currency || 'rs');
+                const actualRsNote = exp.actualRsValue ? ` (₹${exp.actualRsValue.toFixed(2)} Rs)` : '';
+
+                return `<div class="expense-item" style="border-left-color: #ff6f00">
+                    <div class="expense-left">
+                        <div class="expense-category">
+                            ${categoryIcon} ${categoryLabel}
+                        </div>
+                        ${exp.description ? `<div class="expense-description">${exp.description}</div>` : ''}
+                        <p class="expense-meta">${exp.date} | ${typeLabel}</p>
+                    </div>
+                    <p class="expense-amount">${currencySymbol}${exp.amount.toFixed(2)}${actualRsNote}</p>
+                </div>`;
+            }).join('');
+
+            modalContent.innerHTML = html || '<p style="text-align: center; color: #999; padding: 20px;">No Scapia expenses found</p>';
+
+            // Show modal
+            modal.style.display = 'block';
+        }
+
         // Close modal when clicking outside
         document.addEventListener('click', (e) => {
             const modal = document.getElementById('expensesModal');
@@ -2274,22 +2483,29 @@
             
             const allCommonExpenses = expensesForCalc.filter(e => e.type === 'common');
             let safuOwes = 0, labeebOwes = 0;
-            
+
             allCommonExpenses.forEach(exp => {
+                const rsValue = exp.actualRsValue || (exp.currency === 'rs' ? exp.amount : 0);
                 if (exp.splitType === '50-50') {
-                    safuOwes += exp.amount / 2;
-                    labeebOwes += exp.amount / 2;
+                    safuOwes += rsValue / 2;
+                    labeebOwes += rsValue / 2;
                 } else {
                     if (exp.person === 'safu') {
-                        safuOwes += exp.amount;
+                        safuOwes += rsValue;
                     } else if (exp.person === 'labeeb') {
-                        labeebOwes += exp.amount;
+                        labeebOwes += rsValue;
                     }
                 }
             });
 
-            const safuPersonalTotal = expensesForCalc.filter(e => e.type === 'personal' && e.person === 'safu' && e.category !== 'money_given').reduce((s, e) => s + e.amount, 0);
-            const labeebPersonalTotal = expensesForCalc.filter(e => e.type === 'personal' && e.person === 'labeeb' && e.category !== 'money_given').reduce((s, e) => s + e.amount, 0);
+            const safuPersonalTotal = expensesForCalc.filter(e => e.type === 'personal' && e.person === 'safu' && e.category !== 'money_given').reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0);
+            const labeebPersonalTotal = expensesForCalc.filter(e => e.type === 'personal' && e.person === 'labeeb' && e.category !== 'money_given').reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0);
             
             // Calculate credits by type for each person
             // Smart detection: if creditType is missing/undefined, infer from expense type/category
@@ -2302,16 +2518,22 @@
                     // Default: treat as common if not specified (shared expense refund)
                     return true;
                 })
-                .reduce((s, e) => s + e.amount, 0);
-            
+                .reduce((s, e) => {
+                    const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                    return s + rsValue;
+                }, 0);
+
             const safuPersonalCredits = (state.includeCredits ? today : [])
                 .filter(e => {
                     if (e.type !== 'credit' || e.person !== 'safu') return false;
                     // Only count explicitly personal credits
                     return e.creditType === 'personal';
                 })
-                .reduce((s, e) => s + e.amount, 0);
-            
+                .reduce((s, e) => {
+                    const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                    return s + rsValue;
+                }, 0);
+
             const labeebCommonCredits = (state.includeCredits ? today : [])
                 .filter(e => {
                     if (e.type !== 'credit' || e.person !== 'labeeb') return false;
@@ -2319,14 +2541,20 @@
                     if (e.creditType === 'personal') return false;
                     return true;
                 })
-                .reduce((s, e) => s + e.amount, 0);
-            
+                .reduce((s, e) => {
+                    const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                    return s + rsValue;
+                }, 0);
+
             const labeebPersonalCredits = (state.includeCredits ? today : [])
                 .filter(e => {
                     if (e.type !== 'credit' || e.person !== 'labeeb') return false;
                     return e.creditType === 'personal';
                 })
-                .reduce((s, e) => s + e.amount, 0);
+                .reduce((s, e) => {
+                    const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                    return s + rsValue;
+                }, 0);
             
             // Net totals = Personal Expenses - Personal Credits ONLY
             const safuTotal = safuPersonalTotal - safuPersonalCredits;
@@ -2334,8 +2562,14 @@
             
             // Common total = Common Expenses - Common Credits
             const commonCreditsTotal = safuCommonCredits + labeebCommonCredits;
-            const commonTotal = expensesForCalc.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0) - commonCreditsTotal;
-            const dailyTotal = expensesForCalc.reduce((s, e) => s + e.amount, 0) - (safuCommonCredits + safuPersonalCredits + labeebCommonCredits + labeebPersonalCredits);
+            const commonTotal = expensesForCalc.filter(e => e.type === 'common').reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0) - commonCreditsTotal;
+            const dailyTotal = expensesForCalc.reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0) - (safuCommonCredits + safuPersonalCredits + labeebCommonCredits + labeebPersonalCredits);
 
             document.getElementById('commonTotal').textContent = '₹' + commonTotal.toFixed(2);
             document.getElementById('dailyTotal').textContent = '₹' + dailyTotal.toFixed(2);
@@ -2365,8 +2599,14 @@
             document.getElementById('personalCreditsSection').innerHTML = personalCreditsHtml;
 
             let contributionHtml = '<div style="margin-bottom: 12px;"><p style="font-size: 11px; color: #666; margin: 0;">Paid:</p>';
-            const safuPaid = allCommonExpenses.filter(e => e.person === 'safu').reduce((s, e) => s + e.amount, 0);
-            const labeebPaid = allCommonExpenses.filter(e => e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
+            const safuPaid = allCommonExpenses.filter(e => e.person === 'safu').reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0);
+            const labeebPaid = allCommonExpenses.filter(e => e.person === 'labeeb').reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0);
             
             if (safuPaid > 0) {
                 contributionHtml += `<div class="contribution-item"><span class="contribution-name">Safu Paid</span><span class="contribution-amount">₹${safuPaid.toFixed(2)}</span></div>`;
@@ -2412,11 +2652,12 @@
                 html = '<div class="empty-state"><p>No expenses matching filters</p></div>';
             } else {
                 html = expensesToShow.map((exp, i) => {
-                    const person = exp.person === 'safu' ? 'Safu' : 'Labeeb';
-                    let borderColor = exp.person === 'safu' ? '#22c55e' : '#ec4899';
+                    const personDisplay = getPersonDisplay(exp.person);
+                    const person = personDisplay.name;
+                    let borderColor = personDisplay.color;
                     let typeLabel = exp.type === 'common' ? '[Common]' : '[Personal]';
                     const splitLabel = exp.splitType === '50-50' ? ' (50-50)' : '';
-                    
+
                     let categories = commonCategories;
                     if (exp.type === 'credit') {
                         categories = creditCategories;
@@ -2462,29 +2703,45 @@
                 ? month.filter(e => e.type !== 'credit') 
                 : month.filter(e => e.category !== 'credit_card_bill' && e.type !== 'credit'));
             
-            const monthCommonTotal = monthFiltered.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
+            const monthCommonTotal = monthFiltered.filter(e => e.type === 'common').reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0);
             let monthSafuOwes = 0, monthLabeebOwes = 0;
-            
+
             monthFiltered.filter(e => e.type === 'common').forEach(exp => {
+                const rsValue = exp.actualRsValue || (exp.currency === 'rs' ? exp.amount : 0);
                 if (exp.splitType === '50-50') {
-                    monthSafuOwes += exp.amount / 2;
-                    monthLabeebOwes += exp.amount / 2;
+                    monthSafuOwes += rsValue / 2;
+                    monthLabeebOwes += rsValue / 2;
                 } else {
                     if (exp.person === 'safu') {
-                        monthSafuOwes += exp.amount;
+                        monthSafuOwes += rsValue;
                     } else if (exp.person === 'labeeb') {
-                        monthLabeebOwes += exp.amount;
+                        monthLabeebOwes += rsValue;
                     }
                 }
             });
-            
+
             // Calculate personal expenses for each person (excluding Money Given which is handled separately)
-            const monthSafuPersonalExpenses = monthFiltered.filter(e => e.type === 'personal' && e.person === 'safu' && e.category !== 'money_given').reduce((s, e) => s + e.amount, 0);
-            const monthLabeebPersonalExpenses = monthFiltered.filter(e => e.type === 'personal' && e.person === 'labeeb' && e.category !== 'money_given').reduce((s, e) => s + e.amount, 0);
+            const monthSafuPersonalExpenses = monthFiltered.filter(e => e.type === 'personal' && e.person === 'safu' && e.category !== 'money_given').reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0);
+            const monthLabeebPersonalExpenses = monthFiltered.filter(e => e.type === 'personal' && e.person === 'labeeb' && e.category !== 'money_given').reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0);
 
             // Calculate Money Given transfers (treated as spending from sender, reduction for receiver)
-            const safuGaveToLabeeb = month.filter(e => e.category === 'money_given' && e.person === 'safu').reduce((s, e) => s + e.amount, 0);
-            const labeebGaveToSafu = month.filter(e => e.category === 'money_given' && e.person === 'labeeb').reduce((s, e) => s + e.amount, 0);
+            const safuGaveToLabeeb = month.filter(e => e.category === 'money_given' && e.person === 'safu').reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0);
+            const labeebGaveToSafu = month.filter(e => e.category === 'money_given' && e.person === 'labeeb').reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0);
 
             // Money Given transfers: add to sender's spending, subtract from receiver's
             const monthSafuPersonal = monthSafuPersonalExpenses + safuGaveToLabeeb - labeebGaveToSafu;
@@ -2499,15 +2756,21 @@
                     if (e.creditType === 'personal') return false;
                     return true; // Default to common
                 })
-                .reduce((s, e) => s + e.amount, 0);
-            
+                .reduce((s, e) => {
+                    const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                    return s + rsValue;
+                }, 0);
+
             const monthSafuPersonalCredits = (state.includeCredits ? month : [])
                 .filter(e => {
                     if (e.type !== 'credit' || e.person !== 'safu') return false;
                     return e.creditType === 'personal';
                 })
-                .reduce((s, e) => s + e.amount, 0);
-            
+                .reduce((s, e) => {
+                    const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                    return s + rsValue;
+                }, 0);
+
             const monthLabeebCommonCredits = (state.includeCredits ? month : [])
                 .filter(e => {
                     if (e.type !== 'credit' || e.person !== 'labeeb') return false;
@@ -2515,33 +2778,43 @@
                     if (e.creditType === 'personal') return false;
                     return true; // Default to common
                 })
-                .reduce((s, e) => s + e.amount, 0);
-            
+                .reduce((s, e) => {
+                    const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                    return s + rsValue;
+                }, 0);
+
             const monthLabeebPersonalCredits = (state.includeCredits ? month : [])
                 .filter(e => {
                     if (e.type !== 'credit' || e.person !== 'labeeb') return false;
                     return e.creditType === 'personal';
                 })
-                .reduce((s, e) => s + e.amount, 0);
+                .reduce((s, e) => {
+                    const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                    return s + rsValue;
+                }, 0);
             
             // Net amounts = Only personal expenses - personal credits
             // Common expenses reduced by common credits
             const monthCommonCreditsTotal = monthSafuCommonCredits + monthLabeebCommonCredits;
-            const monthCommonExpenses = monthFiltered.filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
+            const monthCommonExpenses = monthFiltered.filter(e => e.type === 'common').reduce((s, e) => {
+                const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                return s + rsValue;
+            }, 0);
             const monthCommonNet = monthCommonExpenses - monthCommonCreditsTotal;
-            
+
             const monthSafuTotal = monthSafuPersonal - monthSafuPersonalCredits;
             const monthLabeebTotal = monthLabeebPersonal - monthLabeebPersonalCredits;
 
             document.getElementById('monthCommon').textContent = '₹' + monthCommonNet.toFixed(2);
-            
+
             // Calculate who covered common expenses
             let monthSafuCovered = 0, monthLabeebCovered = 0;
             monthFiltered.filter(e => e.type === 'common').forEach(exp => {
+                const rsValue = exp.actualRsValue || (exp.currency === 'rs' ? exp.amount : 0);
                 if (exp.person === 'safu') {
-                    monthSafuCovered += exp.amount;
+                    monthSafuCovered += rsValue;
                 } else if (exp.person === 'labeeb') {
-                    monthLabeebCovered += exp.amount;
+                    monthLabeebCovered += rsValue;
                 }
             });
             
@@ -2707,6 +2980,50 @@
 
             document.getElementById('safuPersonalTotal').textContent = monthSafuPersonal.toFixed(2);
             document.getElementById('labeebPersonalTotal').textContent = monthLabeebPersonal.toFixed(2);
+
+            // Calculate Scapia card debts with currency breakdown
+            const getScapiaDebtBreakdown = (person) => {
+                const expenses = monthFiltered.filter(e => e.person === person);
+                const breakdown = { rs: 0, vnd: 0, myr: 0, total: 0 };
+                expenses.forEach(e => {
+                    const rsValue = e.actualRsValue || (e.currency === 'rs' ? e.amount : 0);
+                    breakdown.total += rsValue;
+                    if (e.currency === 'vnd') {
+                        breakdown.vnd += e.amount;
+                    } else if (e.currency === 'myr') {
+                        breakdown.myr += e.amount;
+                    } else {
+                        breakdown.rs += e.amount;
+                    }
+                });
+                return breakdown;
+            };
+
+            const scapiaAbinBreakdown = getScapiaDebtBreakdown('scapia_abin');
+            const scapiaSirilBreakdown = getScapiaDebtBreakdown('scapia_siril');
+
+            let scapiaHtml = '';
+            if (scapiaAbinBreakdown.total > 0 || scapiaSirilBreakdown.total > 0) {
+                if (scapiaAbinBreakdown.total > 0) {
+                    const breakdown = [];
+                    if (scapiaAbinBreakdown.vnd > 0) breakdown.push(`₫${scapiaAbinBreakdown.vnd.toFixed(0)} VND`);
+                    if (scapiaAbinBreakdown.myr > 0) breakdown.push(`RM${scapiaAbinBreakdown.myr.toFixed(2)}`);
+                    if (scapiaAbinBreakdown.rs > 0) breakdown.push(`₹${scapiaAbinBreakdown.rs.toFixed(2)} Rs`);
+                    const breakdownStr = breakdown.length > 0 ? ` (${breakdown.join(', ')})` : '';
+                    scapiaHtml += `<p style="margin: 6px 0; color: #ff6f00; cursor: pointer; text-decoration: underline;" onclick="showScapiaExpensesModal('scapia_abin', 'monthly')"><strong>💳 Owe Scapia Abin: ₹${scapiaAbinBreakdown.total.toFixed(2)}${breakdownStr}</strong></p>`;
+                }
+                if (scapiaSirilBreakdown.total > 0) {
+                    const breakdown = [];
+                    if (scapiaSirilBreakdown.vnd > 0) breakdown.push(`₫${scapiaSirilBreakdown.vnd.toFixed(0)} VND`);
+                    if (scapiaSirilBreakdown.myr > 0) breakdown.push(`RM${scapiaSirilBreakdown.myr.toFixed(2)}`);
+                    if (scapiaSirilBreakdown.rs > 0) breakdown.push(`₹${scapiaSirilBreakdown.rs.toFixed(2)} Rs`);
+                    const breakdownStr = breakdown.length > 0 ? ` (${breakdown.join(', ')})` : '';
+                    scapiaHtml += `<p style="margin: 6px 0; color: #ff6f00; cursor: pointer; text-decoration: underline;" onclick="showScapiaExpensesModal('scapia_siril', 'monthly')"><strong>💳 Owe Scapia Siril: ₹${scapiaSirilBreakdown.total.toFixed(2)}${breakdownStr}</strong></p>`;
+                }
+            } else {
+                scapiaHtml = '<p style="margin: 0; color: #999; font-size: 12px;">No Scapia card expenses this month</p>';
+            }
+            document.getElementById('scapiaDebtsSection').innerHTML = scapiaHtml;
 
             // Calculate category-wise breakdown
             // Deduplicate categories by ID (common and personal share the same IDs)
