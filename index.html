@@ -1738,6 +1738,7 @@
             // Calculate totals - Handle Personal vs Common expenses
             let safuTotal = 0, labeebTotal = 0, commonTotal = 0;
             let tripSafuCovered = 0, tripLabeebCovered = 0;
+            let tripLabeebDirectCovered = 0, tripScapiaCovered = 0;
             let tripSafuCommonCredits = 0, tripSafuPersonalCredits = 0;
             let tripLabeebCommonCredits = 0, tripLabeebPersonalCredits = 0;
             const categoryBreakdown = {};
@@ -1778,14 +1779,19 @@
                     // Common expense - add to commonTotal first
                     commonTotal += rsValue;
 
-                    // Track who paid for common expenses
+                    console.log('Common expense:', rsValue, '- type:', exp.splitType);
+
+                    // Track who paid for common expenses (including Scapia payments settled by Labeeb)
                     if (exp.person === 'safu') {
                         tripSafuCovered += rsValue;
                     } else if (exp.person === 'labeeb') {
                         tripLabeebCovered += rsValue;
+                        tripLabeebDirectCovered += rsValue;
+                    } else if (exp.person === 'scapia_abin' || exp.person === 'scapia_siril') {
+                        // Scapia card payments are settled by Labeeb, so count towards Labeeb's covered
+                        tripLabeebCovered += rsValue;
+                        tripScapiaCovered += rsValue;
                     }
-
-                    console.log('Common expense:', rsValue, '- type:', exp.splitType);
 
                     // Then calculate individual responsibility
                     if (exp.splitType === '50-50' || exp.splitType === 'half') {
@@ -1812,9 +1818,26 @@
             const tripCommonCreditsTotal = state.includeCredits ? (tripSafuCommonCredits + tripLabeebCommonCredits) : 0;
             const tripCommonNet = commonTotal - tripCommonCreditsTotal;
 
-            document.getElementById('tripCommon').textContent = '₹' + tripCommonNet.toFixed(2);
-            document.getElementById('tripSafu').textContent = safuTotal.toFixed(2);
-            document.getElementById('tripLabeeb').textContent = labeebTotal.toFixed(2);
+            // Trip Summary - make clickable to show expenses
+            const tripCommonEl = document.getElementById('tripCommon');
+            const tripSafuEl = document.getElementById('tripSafu');
+            const tripLabeebEl = document.getElementById('tripLabeeb');
+
+            tripCommonEl.textContent = '₹' + tripCommonNet.toFixed(2);
+            tripCommonEl.style.cursor = 'pointer';
+            tripCommonEl.style.textDecoration = 'underline';
+            tripCommonEl.onclick = () => showExpensesModal('common', 'trip');
+
+            tripSafuEl.textContent = safuTotal.toFixed(2);
+            tripSafuEl.style.cursor = 'pointer';
+            tripSafuEl.style.textDecoration = 'underline';
+            tripSafuEl.onclick = () => showTripPersonExpenses('safu');
+
+            tripLabeebEl.textContent = labeebTotal.toFixed(2);
+            tripLabeebEl.style.cursor = 'pointer';
+            tripLabeebEl.style.textDecoration = 'underline';
+            tripLabeebEl.onclick = () => showTripPersonExpenses('labeeb');
+
             document.getElementById('tripTotal').textContent = (safuTotal + labeebTotal).toFixed(2);
 
             // Display who covered common expenses
@@ -1828,7 +1851,12 @@
             tripSafuCoveredEl.style.textDecoration = 'underline';
             tripSafuCoveredEl.onclick = () => showExpensesModal('safu', 'trip');
             
-            tripLabeebCoveredEl.textContent = tripLabeebCovered.toFixed(2);
+            // Display Trip Labeeb Covered with breakdown if Scapia present
+            if (tripScapiaCovered > 0) {
+                tripLabeebCoveredEl.innerHTML = `${tripLabeebCovered.toFixed(2)}<br><span style="font-size: 11px; color: #666;">(${tripLabeebDirectCovered.toFixed(2)} + credit card ${tripScapiaCovered.toFixed(2)})</span>`;
+            } else {
+                tripLabeebCoveredEl.textContent = tripLabeebCovered.toFixed(2);
+            }
             tripLabeebCoveredEl.style.cursor = 'pointer';
             tripLabeebCoveredEl.style.textDecoration = 'underline';
             tripLabeebCoveredEl.onclick = () => showExpensesModal('labeeb', 'trip');
@@ -1855,7 +1883,16 @@
                 // Labeeb paid extra in common + money they gave - money they received
                 const totalExtra = commonExtra + labeebGaveToSafu - safuGaveToLabeeb;
 
-                let breakdownText = `₹${commonExtra.toFixed(2)}`;
+                // Calculate direct extra and Scapia portion
+                const directExtra = tripLabeebDirectCovered - tripFairShare;
+                let breakdownText = '';
+                if (tripScapiaCovered > 0) {
+                    // Show: direct_extra + credit card bills(scapia)
+                    breakdownText = `${directExtra.toFixed(2)} + credit card bills(${tripScapiaCovered.toFixed(2)})`;
+                } else {
+                    breakdownText = `${commonExtra.toFixed(2)}`;
+                }
+
                 if (labeebGaveToSafu > 0) {
                     breakdownText += ` + cash transfer ₹${labeebGaveToSafu.toFixed(2)}`;
                 }
@@ -1980,15 +2017,15 @@
             const modal = document.getElementById('expensesModal');
             const title = document.getElementById('modalTitle');
 
-            const personName = person === 'safu' ? 'Safu' : 'Labeeb';
-            let titleText = `${personName} - Common Expenses Covered`;
+            let personName = person === 'safu' ? 'Safu' : person === 'labeeb' ? 'Labeeb' : 'Common';
+            let titleText = `${personName} - Expenses`;
+            let modalType = 'covered';
 
             // Store state for sorting
             state.modalPerson = person;
             state.modalTab = tab;
             state.modalSort = 'date';
             state.modalSortDirection = 'desc';
-            state.modalType = 'covered';
 
             let filteredExpenses = [];
 
@@ -2000,24 +2037,38 @@
                     return isInMonth && !shouldExcludeTrip;
                 });
 
-                // Filter for common expenses by this person
-                filteredExpenses = month.filter(e => e.type === 'common' && e.person === person);
-
                 // Add month to title
                 const monthDate = new Date(`${state.selectedMonth}-01`);
                 const monthLabel = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                titleText = `${personName} - Common Expenses Covered (${monthLabel})`;
+
+                if (person === 'common') {
+                    // Show all common expenses
+                    filteredExpenses = month.filter(e => e.type === 'common');
+                    titleText = `Common Expenses (${monthLabel})`;
+                } else {
+                    // Show common expenses covered by this person
+                    filteredExpenses = month.filter(e => e.type === 'common' && e.person === person);
+                    titleText = `${personName} - Common Expenses Covered (${monthLabel})`;
+                }
             } else if (tab === 'trip') {
                 // Get all trip expenses
                 const tripExpenses = state.expenses.filter(e => e.isTrip === true);
 
-                // Filter for common expenses by this person
-                filteredExpenses = tripExpenses.filter(e => e.type === 'common' && e.person === person);
+                if (person === 'common') {
+                    // Show all common expenses for trip
+                    filteredExpenses = tripExpenses.filter(e => e.type === 'common');
+                    titleText = `Common Expenses - Trip`;
+                } else {
+                    // Show common expenses covered by this person, OR all expenses for that person
+                    filteredExpenses = tripExpenses.filter(e => e.type === 'common' && e.person === person);
+                    titleText = `${personName} - Common Expenses Covered`;
+                }
             }
 
+            state.modalType = modalType;
             title.textContent = titleText;
             state.modalExpenses = filteredExpenses;
-            
+
             // Reset sort buttons
             document.getElementById('sortByDateBtn').style.background = '#667eea';
             document.getElementById('sortByDateBtn').style.color = 'white';
@@ -2029,7 +2080,40 @@
             renderExpensesModal();
             modal.style.display = 'block';
         }
-        
+
+        function showTripPersonExpenses(person) {
+            const modal = document.getElementById('expensesModal');
+            const title = document.getElementById('modalTitle');
+
+            const personName = person === 'safu' ? 'Safu' : 'Labeeb';
+            const tripExpenses = state.expenses.filter(e => e.isTrip === true);
+
+            // Show all expenses for this person (both common and personal)
+            const filteredExpenses = tripExpenses.filter(e => e.person === person && e.type !== 'credit');
+
+            const titleText = `${personName} - All Expenses (Trip)`;
+
+            state.modalPerson = person;
+            state.modalTab = 'trip';
+            state.modalSort = 'date';
+            state.modalSortDirection = 'desc';
+            state.modalType = 'total';
+
+            title.textContent = titleText;
+            state.modalExpenses = filteredExpenses;
+
+            // Reset sort buttons
+            document.getElementById('sortByDateBtn').style.background = '#667eea';
+            document.getElementById('sortByDateBtn').style.color = 'white';
+            document.getElementById('sortByDateBtn').style.borderColor = '#667eea';
+            document.getElementById('sortByAmountBtn').style.background = 'white';
+            document.getElementById('sortByAmountBtn').style.color = '#666';
+            document.getElementById('sortByAmountBtn').style.borderColor = '#ddd';
+
+            renderExpensesModal();
+            modal.style.display = 'block';
+        }
+
         function sortExpensesModal(sortBy) {
             if (state.modalSort === sortBy) {
                 // Toggle direction if same sort
@@ -2846,14 +2930,20 @@
 
             document.getElementById('monthCommon').textContent = '₹' + monthCommonNet.toFixed(2);
 
-            // Calculate who covered common expenses
+            // Calculate who covered common expenses (including Scapia payments settled by Labeeb)
             let monthSafuCovered = 0, monthLabeebCovered = 0;
+            let monthLabeebDirectCovered = 0, monthScapiaCovered = 0;
             monthFiltered.filter(e => e.type === 'common').forEach(exp => {
                 const rsValue = exp.actualRsValue || (exp.currency === 'rs' ? exp.amount : 0);
                 if (exp.person === 'safu') {
                     monthSafuCovered += rsValue;
                 } else if (exp.person === 'labeeb') {
                     monthLabeebCovered += rsValue;
+                    monthLabeebDirectCovered += rsValue;
+                } else if (exp.person === 'scapia_abin' || exp.person === 'scapia_siril') {
+                    // Scapia card payments are settled by Labeeb, so count towards Labeeb's covered
+                    monthLabeebCovered += rsValue;
+                    monthScapiaCovered += rsValue;
                 }
             });
             
@@ -2866,7 +2956,12 @@
             safuCoveredEl.style.textDecoration = 'underline';
             safuCoveredEl.onclick = () => showExpensesModal('safu', 'monthly');
             
-            labeebCoveredEl.textContent = monthLabeebCovered.toFixed(2);
+            // Display Labeeb Covered with breakdown if Scapia present
+            if (monthScapiaCovered > 0) {
+                labeebCoveredEl.innerHTML = `${monthLabeebCovered.toFixed(2)}<br><span style="font-size: 11px; color: #666;">(${monthLabeebDirectCovered.toFixed(2)} + credit card ${monthScapiaCovered.toFixed(2)})</span>`;
+            } else {
+                labeebCoveredEl.textContent = monthLabeebCovered.toFixed(2);
+            }
             labeebCoveredEl.style.cursor = 'pointer';
             labeebCoveredEl.style.textDecoration = 'underline';
             labeebCoveredEl.onclick = () => showExpensesModal('labeeb', 'monthly');
@@ -2893,7 +2988,16 @@
                 // Labeeb paid extra in common, add money given to Safu, subtract money received from Safu
                 const totalExtra = commonExtra + labeebGaveToSafu - safuGaveToLabeeb;
 
-                let breakdownText = `₹${commonExtra.toFixed(2)}`;
+                // Calculate direct extra and Scapia portion
+                const directExtra = monthLabeebDirectCovered - fairShare;
+                let breakdownText = '';
+                if (monthScapiaCovered > 0) {
+                    // Show: direct_extra + credit card bills(scapia)
+                    breakdownText = `${directExtra.toFixed(2)} + credit card bills(${monthScapiaCovered.toFixed(2)})`;
+                } else {
+                    breakdownText = `${commonExtra.toFixed(2)}`;
+                }
+
                 if (labeebGaveToSafu > 0) {
                     breakdownText += ` + cash transfer ₹${labeebGaveToSafu.toFixed(2)}`;
                 }
