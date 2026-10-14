@@ -1192,15 +1192,8 @@
                         throw new Error(data.error || 'Invalid data format');
                     }
 
-                    // Deduplicate expenses by date, person, category, and amount
-                    const expenseMap = new Map();
-                    data.forEach(exp => {
-                        const key = `${exp.date}|${exp.person}|${exp.category}|${exp.amount}|${exp.type}`;
-                        if (!expenseMap.has(key)) {
-                            expenseMap.set(key, exp);
-                        }
-                    });
-                    state.expenses = Array.from(expenseMap.values());
+                    // Show all items individually without deduplication
+                    state.expenses = data;
 
                     // Re-enable buttons and show success
                     setButtonsDisabled(false);
@@ -1234,7 +1227,7 @@
 
             // Reset all filters to default (show all)
             state.activeCategoryFilters = [];
-            state.activePersonFilters = ['safu', 'labeeb'];
+            state.activePersonFilters = ['safu', 'labeeb', 'scapia_abin', 'scapia_siril'];
             state.activeTypeFilters = ['common', 'personal', 'credit'];
 
             updateFilterButtons();
@@ -1679,18 +1672,37 @@
             }).join('');
             document.getElementById('tripPersonFilterButtons').innerHTML = personHtml;
 
-            // Calculate currency breakdown
+            // Calculate currency breakdown - separated by Cash vs Card payments
             let tripTotalRs = 0, tripTotalVnd = 0, tripTotalMyr = 0, tripTotalActualRs = 0;
+            let tripVndCash = 0, tripVndCard = 0, tripVndCardRs = 0;
+            let tripMyrCash = 0, tripMyrCard = 0, tripMyrCardRs = 0;
+
             tripExpenses.forEach(exp => {
                 const currency = exp.currency || 'rs';
                 const actualRsVal = exp.actualRsValue || (currency === 'rs' ? exp.amount : 0);
+                const isCashPayment = exp.person === 'safu' || exp.person === 'labeeb';
+                const isCardPayment = exp.person === 'scapia_abin' || exp.person === 'scapia_siril';
 
                 if (currency === 'rs') {
                     tripTotalRs += exp.amount;
                 } else if (currency === 'vnd') {
                     tripTotalVnd += exp.amount;
+                    // Separate VND by payment method (Cash vs Card)
+                    if (isCashPayment) {
+                        tripVndCash += exp.amount;
+                    } else if (isCardPayment) {
+                        tripVndCard += exp.amount;
+                        tripVndCardRs += exp.actualRsValue || 0;
+                    }
                 } else if (currency === 'myr') {
                     tripTotalMyr += exp.amount;
+                    // Separate MYR by payment method (Cash vs Card)
+                    if (isCashPayment) {
+                        tripMyrCash += exp.amount;
+                    } else if (isCardPayment) {
+                        tripMyrCard += exp.amount;
+                        tripMyrCardRs += exp.actualRsValue || 0;
+                    }
                 }
 
                 // Accumulate actual Rs value (use actualRsValue if provided, otherwise use Rs amount)
@@ -1698,8 +1710,29 @@
             });
 
             document.getElementById('tripTotalRs').textContent = tripTotalRs.toFixed(2);
-            document.getElementById('tripTotalVnd').textContent = tripTotalVnd.toFixed(0);
-            document.getElementById('tripTotalMyr').textContent = tripTotalMyr.toFixed(2);
+
+            // Format VND display with Cash vs Card breakdown
+            let vndDisplay = '';
+            if (tripVndCash > 0 && tripVndCard > 0) {
+                vndDisplay = `${tripVndCash.toFixed(0)} Cash (₫${tripVndCard.toFixed(0)} = ₹${tripVndCardRs.toFixed(2)} Card)`;
+            } else if (tripVndCash > 0) {
+                vndDisplay = `${tripVndCash.toFixed(0)} Cash`;
+            } else if (tripVndCard > 0) {
+                vndDisplay = `₫${tripVndCard.toFixed(0)} = ₹${tripVndCardRs.toFixed(2)} Card`;
+            }
+            document.getElementById('tripTotalVnd').innerHTML = vndDisplay || '0';
+
+            // Format MYR display with Cash vs Card breakdown
+            let myrDisplay = '';
+            if (tripMyrCash > 0 && tripMyrCard > 0) {
+                myrDisplay = `${tripMyrCash.toFixed(2)} Cash (RM${tripMyrCard.toFixed(2)} = ₹${tripMyrCardRs.toFixed(2)} Card)`;
+            } else if (tripMyrCash > 0) {
+                myrDisplay = `${tripMyrCash.toFixed(2)} Cash`;
+            } else if (tripMyrCard > 0) {
+                myrDisplay = `RM${tripMyrCard.toFixed(2)} = ₹${tripMyrCardRs.toFixed(2)} Card`;
+            }
+            document.getElementById('tripTotalMyr').innerHTML = myrDisplay || '0';
+
             document.getElementById('tripTotalActualRs').textContent = tripTotalActualRs.toFixed(2);
 
             // Calculate totals - Handle Personal vs Common expenses
@@ -1946,37 +1979,43 @@
         function showExpensesModal(person, tab) {
             const modal = document.getElementById('expensesModal');
             const title = document.getElementById('modalTitle');
-            
+
             const personName = person === 'safu' ? 'Safu' : 'Labeeb';
-            title.textContent = `${personName} - Common Expenses Covered`;
-            
+            let titleText = `${personName} - Common Expenses Covered`;
+
             // Store state for sorting
             state.modalPerson = person;
             state.modalTab = tab;
             state.modalSort = 'date';
             state.modalSortDirection = 'desc';
             state.modalType = 'covered';
-            
+
             let filteredExpenses = [];
-            
+
             if (tab === 'monthly') {
-                // Get current month
+                // Get current month using state.selectedMonth
                 const month = state.expenses.filter(e => {
-                    const isInMonth = e.date.startsWith(state.selectedDate.slice(0, 7));
+                    const isInMonth = e.date.startsWith(state.selectedMonth);
                     const shouldExcludeTrip = state.excludeTrip && e.isTrip;
                     return isInMonth && !shouldExcludeTrip;
                 });
-                
+
                 // Filter for common expenses by this person
                 filteredExpenses = month.filter(e => e.type === 'common' && e.person === person);
+
+                // Add month to title
+                const monthDate = new Date(`${state.selectedMonth}-01`);
+                const monthLabel = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                titleText = `${personName} - Common Expenses Covered (${monthLabel})`;
             } else if (tab === 'trip') {
                 // Get all trip expenses
                 const tripExpenses = state.expenses.filter(e => e.isTrip === true);
-                
+
                 // Filter for common expenses by this person
                 filteredExpenses = tripExpenses.filter(e => e.type === 'common' && e.person === person);
             }
-            
+
+            title.textContent = titleText;
             state.modalExpenses = filteredExpenses;
             
             // Reset sort buttons
